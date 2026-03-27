@@ -7,24 +7,11 @@ The rule of the project is simple:
 - `init.lua` should stay tiny.
 - `lua/config/` is for editor behavior.
 - `lua/config/automation/` is for custom automations that are not plugins.
-- `lua/plugins/` is grouped by scope, with one plugin per file.
+- `lua/plugins/` is grouped by scope, with one plugin per file. Each plugin file must start with a comment describing what the plugin does.
 - `lua/tools/` is for external sync and maintenance helpers.
 - Keep junk out of the repo root and out of `lua/`.
 - Every maintained source, doc, and script file should start with a short purpose header.
 - Exception: machine-generated or strict-format files that cannot safely hold comments, like `lazy-lock.json`, keep their format unchanged.
-
-## File Structure
-
-```text
-.
-├── .gitignore
-│   │   ├── themes
-│   │   └── ui
-    └── structure.lua
-```
-
-Root should only contain intentional project files.
-Do not leave `.nvimlog`, `*.bak`, or scratch files in the repo.
 
 ## Editing Convention
 
