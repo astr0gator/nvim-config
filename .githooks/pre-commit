@@ -8,3 +8,30 @@ repo_root=$(git rev-parse --show-toplevel)
 
 echo "pre-commit: running Neovim tests"
 sh "$repo_root/tests/run.sh"
+
+# Check that plugin files have descriptive header comments
+plugin_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^lua/plugins/.*\.lua$' || true)
+
+if [ -n "$plugin_files" ]; then
+    failed=0
+
+    for file in $plugin_files; do
+        # Read first non-empty line
+        first_line=$(grep -v '^[[:space:]]*$' "$repo_root/$file" | head -n 1 || true)
+
+        # Check if it's a comment with actual content (not just --- or -- alone)
+        if [ "$first_line" = "" ] || ! echo "$first_line" | grep -qE '^--[[:space:]]+[A-Za-z]'; then
+            echo "✗ $file: missing or invalid description comment at top"
+            echo "  First line is: $first_line"
+            echo "  Expected format: -- Describe what this plugin does"
+            failed=1
+        fi
+    done
+
+    if [ $failed -eq 1 ]; then
+        echo ""
+        echo "Plugin files must start with a descriptive comment."
+        echo "See docs/README.md for conventions."
+        exit 1
+    fi
+fi
