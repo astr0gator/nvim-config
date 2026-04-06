@@ -67,13 +67,20 @@ return {
         end
         vim.api.nvim_set_current_line(new_line)
       else
-        vim.api.nvim_set_current_line(line:gsub("%[x%]", "[ ]"))
+        local new_line = line:gsub("%[x%]", "[ ]"):gsub("%[X%]", "[ ]")
+        -- Remove date stamp added on toggle (e.g. " | 2026-04-02" or " | 2026-04-02 |")
+        new_line = new_line:gsub(" | %d%d%d%d%-%d%d%-%d%d |$", "")
+        new_line = new_line:gsub(" | %d%d%d%d%-%d%d%-%d%d$", "")
+        vim.api.nvim_set_current_line(new_line)
       end
     end
 
     _G.toggle_checkbox = toggle_checkbox
 
     local function set_markdown_task_maps(bufnr)
+      -- Auto-continue bullets, numbers, and checkboxes on Enter
+      vim.cmd([[imap <buffer> <CR> <Plug>(bullets-newline)]])
+
       vim.keymap.set("n", "td", toggle_checkbox, { buffer = bufnr, desc = "Toggle checkbox" })
 
       vim.keymap.set("n", "ta", function()

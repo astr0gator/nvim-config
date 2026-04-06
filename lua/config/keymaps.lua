@@ -110,40 +110,40 @@ map("n", "zb", "L", { noremap = true, desc = "Scroll — current line to bottom"
 map("n", "<S-h>", "<cmd>bprevious<CR>",      { desc = "Previous buffer" })
 map("n", "<S-l>", "<cmd>bnext<CR>",          { desc = "Next buffer" })
 
--- ── Edit: Delete (void register) ──────────────────────────────────────────────
-
-map("n", "x",  '"_x',                        { noremap = true, desc = "Delete char — forward, void register" })
-map("n", "X",  '"_X',                        { noremap = true, desc = "Delete char — backward, void register" })
-map("n", "d",  '"_d',                        { noremap = true, desc = "Delete — with motion, void register" })
-map("v", "d",  '"_d',                        { noremap = true, desc = "Delete — with motion, void register" })
-map("n", "D",  '"_D',                        { noremap = true, desc = "Delete line — to end, void register" })
-map("n", "dd", '"_dd',                       { noremap = true, desc = "Delete line — void register" })
--- Flash: r — remote flash motion for operators (e.g. dr + char = delete to any char on screen)
-
 -- ── Edit: Delete (cut to register) ───────────────────────────────────────────
 
-map("n", "<leader>d", "d",                   { noremap = true, desc = "Delete — cut to register" })
-map("v", "<leader>d", "d",                   { noremap = true, desc = "Delete — cut to register" })
+map("n", "x",  'x',                          { noremap = true, desc = "Delete char — forward, cut to register" })
+map("n", "X",  'X',                          { noremap = true, desc = "Delete char — backward, cut to register" })
+map("n", "d",  'd',                          { noremap = true, desc = "Delete — with motion, cut to register" })
+map("v", "d",  'd',                          { noremap = true, desc = "Delete — with motion, cut to register" })
+map("n", "D",  'D',                          { noremap = true, desc = "Delete line — to end, cut to register" })
+map("n", "dd", 'dd',                         { noremap = true, desc = "Delete line — cut to register" })
+-- Flash: r — remote flash motion for operators (e.g. dr + char = delete to any char on screen)
 
--- ── Edit: Change (void register) ──────────────────────────────────────────────
+-- ── Edit: Delete (void register) ──────────────────────────────────────────────
 
-map("n", "c",  '"_c',                        { noremap = true, desc = "Change — with motion, void register" })
-map("v", "c",  '"_c',                        { noremap = true, desc = "Change — with motion, void register" })
-map("n", "C",  '"_C',                        { noremap = true, desc = "Change line — to end, void register" })
-map("n", "cc", '"_cc',                       { noremap = true, desc = "Change line — void register" })
--- Flash: R — treesitter search motion (e.g. cR = change until a function definition)
+map("n", "<leader>d", '"_d',                 { noremap = true, desc = "Delete — void register" })
+map("v", "<leader>d", '"_d',                 { noremap = true, desc = "Delete — void register" })
 
 -- ── Edit: Change (cut to register) ───────────────────────────────────────────
 
-map("n", "<leader>c", "c",                   { noremap = true, desc = "Change — cut to register" })
-map("v", "<leader>c", "c",                   { noremap = true, desc = "Change — cut to register" })
+map("n", "c",  'c',                          { noremap = true, desc = "Change — with motion, cut to register" })
+map("v", "c",  'c',                          { noremap = true, desc = "Change — with motion, cut to register" })
+map("n", "C",  'C',                          { noremap = true, desc = "Change line — to end, cut to register" })
+map("n", "cc", 'cc',                         { noremap = true, desc = "Change line — cut to register" })
+-- Flash: R — treesitter search motion (e.g. cR = change until a function definition)
+
+-- ── Edit: Change (void register) ──────────────────────────────────────────────
+
+map("n", "<leader>c", '"_c',                 { noremap = true, desc = "Change — void register" })
+map("v", "<leader>c", '"_c',                 { noremap = true, desc = "Change — void register" })
 
 -- ── Edit: Move Lines ──────────────────────────────────────────────────────────
 
-map("n", "<M-C-k>", ":m .-2<CR>==",          { noremap = true, silent = true, desc = "Move line — up" })
-map("n", "<M-C-j>", ":m .+1<CR>==",          { noremap = true, silent = true, desc = "Move line — down" })
-map("v", "<M-C-k>", ":m '<-2<CR>gv=gv",      { noremap = true, silent = true, desc = "Move line — up, selection" })
-map("v", "<M-C-j>", ":m '>+1<CR>gv=gv",      { noremap = true, silent = true, desc = "Move line — down, selection" })
+map("n", "<M-C-k>", ":m .-2<CR>",            { noremap = true, silent = true, desc = "Move line — up" })
+map("n", "<M-C-j>", ":m .+1<CR>",            { noremap = true, silent = true, desc = "Move line — down" })
+map("v", "<M-C-k>", ":m '<-2<CR>gv",         { noremap = true, silent = true, desc = "Move line — up, selection" })
+map("v", "<M-C-j>", ":m '>+1<CR>gv",         { noremap = true, silent = true, desc = "Move line — down, selection" })
 
 -- ── Edit: Indent ──────────────────────────────────────────────────────────────
 -- Disabled to preserve Ctrl+i (jump forward, same keycode as Tab)
@@ -165,6 +165,17 @@ map("i", "<C-e>", "<C-o>$",                   { noremap = true, desc = "Insert �
 map("i", "<C-a>", "<C-o>^",                   { noremap = true, desc = "Insert — start of line" })
 map("i", "<C-f>", "<C-o>a",                   { noremap = true, desc = "Insert — forward character" })
 map("i", "<C-b>", "<C-o>h",                   { noremap = true, desc = "Insert — backward character" })
+
+-- ── Yank Clean ─────────────────────────────────────────────────────────────────
+
+map("n", "yc", function()
+  local line = vim.fn.getline(".")
+  line = line:gsub("^%s*%[.?%]%s*", "")   -- strip [ ], [x], etc. + surrounding space
+  line = line:gsub("%s*|.*$", "")          -- strip | and everything after
+  vim.fn.setreg('"', line)
+  vim.fn.setreg("+", line)
+  vim.notify("Yanked: " .. line, vim.log.levels.INFO)
+end, { desc = "Yank clean — strip [ ] and | suffix" })
 
 -- ── Clipboard ─────────────────────────────────────────────────────────────────
 
@@ -197,3 +208,7 @@ map("n", "<leader>tt", function() require("config.theme").use_tokyonight() end, 
 map("n", "<leader>tm", function() require("config.theme").use_miasma()   end, { desc = "Theme — Miasma" })
 map("n", "<leader>tn", function() require("config.theme").cycle(1)       end, { desc = "Theme — next" })
 map("n", "<leader>tp", function() require("config.theme").cycle(-1)      end, { desc = "Theme — previous" })
+
+-- ── Toggle ────────────────────────────────────────────────────────────────────
+
+map("n", "<leader>ta", function() require("config.automation.autosave").toggle() end, { desc = "Toggle autosave on focus lost" })

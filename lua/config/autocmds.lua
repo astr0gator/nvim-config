@@ -11,13 +11,31 @@ autocmd("TextYankPost", {
   end,
 })
 
+_G.markdown_foldtext = function()
+  local line = vim.fn.trim(vim.fn.getline(vim.v.foldstart))
+  local count = vim.v.foldend - vim.v.foldstart + 1
+  return string.format("%s [%d lines]", line, count)
+end
+
+_G.markdown_foldexpr = function()
+  local level = vim.fn.getline(vim.v.lnum):match("^(#+)%s")
+  if level then
+    return ">" .. math.min(#level, 6)
+  end
+  return "="
+end
+
 autocmd("FileType", {
   pattern = "markdown",
-  desc = "Use visual wrapping for Markdown content, including wide tables",
+  desc = "Configure markdown: visual wrapping and heading-based folding",
   callback = function()
     vim.opt_local.wrap = true
     vim.opt_local.linebreak = true
     vim.opt_local.breakindent = true
+    vim.opt_local.foldmethod = "expr"
+    vim.opt_local.foldexpr = "v:lua.markdown_foldexpr()"
+    vim.opt_local.foldtext = "v:lua.markdown_foldtext()"
+    vim.opt_local.foldlevelstart = 99
   end,
 })
 

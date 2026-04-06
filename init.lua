@@ -7,4 +7,3 @@ require "config.lazy"
 require "config.keymaps"
 require "config.autocmds"
 require "config.tabline"
-require "tools.navi_sync".setup()

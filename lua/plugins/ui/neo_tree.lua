@@ -5,6 +5,13 @@ return {
   cmd = "Neotree",
   keys = {
     { "<leader>e", "<cmd>Neotree toggle filesystem reveal left<CR>", desc = "Toggle file tree" },
+    { "-", function()
+      if vim.bo.ft == "neo-tree" then
+        vim.cmd.wincmd("p")
+      else
+        vim.cmd("Neotree focus filesystem reveal left")
+      end
+    end, desc = "Jump between file tree and editor" },
   },
   dependencies = {
     "nvim-lua/plenary.nvim",
