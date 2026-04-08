@@ -3,7 +3,7 @@ return {
   "nvim-telescope/telescope.nvim",
   cmd = "Telescope",
   keys = {
-    { "<leader>p", "<cmd>Telescope commands<CR>", desc = "Telescope — command palette" },
+    { "<leader>pp", "<cmd>Telescope commands<CR>", desc = "Command palette" },
     { "<leader>f", "<cmd>Telescope find_files<CR>", desc = "Telescope — find files" },
     { "<leader>/", "<cmd>Telescope live_grep<CR>", desc = "Telescope — grep in files" },
     { "<leader>b", "<cmd>Telescope buffers<CR>", desc = "Telescope — open buffers" },

@@ -6,15 +6,38 @@ return {
     preset = "modern",
     delay = 150,
     notify = false,
-    -- Use automatic triggers everywhere except operator-pending mode,
-    -- which interferes with flash.nvim's remote motions.
     triggers = {
       { "<auto>", mode = "nixstc" },
     },
     spec = {
-      { "<leader>x", desc = "Close buffer" },
-      { "<C-j>", desc = "Scroll — half page down" },
-      { "<C-k>", desc = "Scroll — half page up" },
+      -- ── File ──
+      { "<leader>w",  desc = "Save" },
+      { "<leader>Z",  desc = "Save all" },
+      { "<leader>q",  desc = "Save + quit" },
+      { "<leader>Q",  desc = "Force quit" },
+      { "<leader>x",  desc = "Close buffer" },
+
+      -- ── Find / Navigate ──
+      { "<leader>f",  desc = "Find files" },
+      { "<leader>b",  desc = "Buffers" },
+      { "<leader>/",  desc = "Grep" },
+      { "<leader>h",  desc = "Help" },
+      { "<leader>k",  desc = "Keymaps" },
+      { "<leader>e",  desc = "File tree" },
+      { "<leader>;",  desc = "Command mode" },
+
+      -- ── Palette ──
+      { "<leader>p",  group = "palette", icon = " " },
+
+      -- ── Options ──
+      { "<leader>o",  group = "options", icon = " " },
+
+      -- ── Misc ──
+      { "<leader>?",  desc = "Key hints" },
+
+      -- ── Non-leader ──
+      { "<C-j>", desc = "Scroll down" },
+      { "<C-k>", desc = "Scroll up" },
     },
   },
   keys = {

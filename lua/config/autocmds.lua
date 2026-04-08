@@ -27,7 +27,7 @@ end
 
 autocmd("FileType", {
   pattern = "markdown",
-  desc = "Configure markdown: visual wrapping and heading-based folding",
+  desc = "Configure markdown: visual wrapping, heading-based folding, fold keymaps",
   callback = function()
     vim.opt_local.wrap = true
     vim.opt_local.linebreak = true
@@ -36,6 +36,49 @@ autocmd("FileType", {
     vim.opt_local.foldexpr = "v:lua.markdown_foldexpr()"
     vim.opt_local.foldtext = "v:lua.markdown_foldtext()"
     vim.opt_local.foldlevelstart = 99
+
+    local bopts = { buffer = true, noremap = true, silent = true }
+
+    -- Enter: toggle fold under cursor
+    vim.keymap.set("n", "<CR>", function()
+      if vim.fn.foldlevel(".") > 0 then
+        return "za"
+      end
+      return "<CR>"
+    end, vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle under cursor" }))
+
+    -- Ctrl+Enter: toggle all folds in buffer
+    vim.keymap.set("n", "<C-CR>", function()
+      for i = 1, vim.fn.line("$") do
+        if vim.fn.foldclosed(i) ~= -1 then
+          return "zR"
+        end
+      end
+      return "zM"
+    end, vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle all in buffer" }))
+  end,
+})
+
+-- Save and restore fold state, cursor position, and scroll
+vim.opt.viewoptions = { "folds", "cursor", "curdir" }
+
+autocmd("BufWinLeave", {
+  pattern = "*",
+  desc = "Save view (folds, cursor) on buffer leave",
+  callback = function()
+    if vim.bo.buflisted then
+      vim.cmd.mkview({ mods = { emsg_silent = true } })
+    end
+  end,
+})
+
+autocmd("BufWinEnter", {
+  pattern = "*",
+  desc = "Restore view (folds, cursor) on buffer enter",
+  callback = function()
+    if vim.bo.buflisted then
+      vim.cmd.loadview({ mods = { emsg_silent = true } })
+    end
   end,
 })
 

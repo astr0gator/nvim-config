@@ -9,8 +9,8 @@ return {
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "markdown",
       callback = function()
-        vim.keymap.set("n", "<Leader>tb", ":TableModeToggle<CR>", { buffer = true, desc = "Toggle table mode" })
-        vim.keymap.set("n", "<Leader>tr", ":TableModeRealign<CR>", { buffer = true, desc = "Realign table" })
+        vim.keymap.set("n", "<Leader>mt", ":TableModeToggle<CR>", { buffer = true, desc = "Markdown — toggle table mode" })
+        vim.keymap.set("n", "<Leader>mr", ":TableModeRealign<CR>", { buffer = true, desc = "Markdown — realign table" })
       end,
     })
   end,

@@ -122,8 +122,8 @@ map("n", "dd", 'dd',                         { noremap = true, desc = "Delete li
 
 -- ── Edit: Delete (void register) ──────────────────────────────────────────────
 
-map("n", "<leader>d", '"_d',                 { noremap = true, desc = "Delete — void register" })
-map("v", "<leader>d", '"_d',                 { noremap = true, desc = "Delete — void register" })
+map("n", "<leader>pd", '"_d',                 { noremap = true, desc = "Delete — void register" })
+map("v", "<leader>pd", '"_d',                 { noremap = true, desc = "Delete — void register" })
 
 -- ── Edit: Change (cut to register) ───────────────────────────────────────────
 
@@ -135,8 +135,8 @@ map("n", "cc", 'cc',                         { noremap = true, desc = "Change li
 
 -- ── Edit: Change (void register) ──────────────────────────────────────────────
 
-map("n", "<leader>c", '"_c',                 { noremap = true, desc = "Change — void register" })
-map("v", "<leader>c", '"_c',                 { noremap = true, desc = "Change — void register" })
+map("n", "<leader>pc", '"_c',                 { noremap = true, desc = "Change — void register" })
+map("v", "<leader>pc", '"_c',                 { noremap = true, desc = "Change — void register" })
 
 -- ── Edit: Move Lines ──────────────────────────────────────────────────────────
 
@@ -201,14 +201,16 @@ map("n", "<leader>?", function()
   require("which-key").show({ global = true })
 end, { desc = "Show key hints" })
 
--- ── Theme ─────────────────────────────────────────────────────────────────────
+-- ── Options ───────────────────────────────────────────────────────────────────
 
-map("n", "<leader>tf", function() require("config.theme").use_flexoki()  end, { desc = "Theme — Flexoki" })
-map("n", "<leader>tt", function() require("config.theme").use_tokyonight() end, { desc = "Theme — Tokyonight" })
-map("n", "<leader>tm", function() require("config.theme").use_miasma()   end, { desc = "Theme — Miasma" })
-map("n", "<leader>tn", function() require("config.theme").cycle(1)       end, { desc = "Theme — next" })
-map("n", "<leader>tp", function() require("config.theme").cycle(-1)      end, { desc = "Theme — previous" })
+map("n", "<leader>of", function() require("config.theme").use_flexoki()  end, { desc = "Theme — Flexoki" })
+map("n", "<leader>ot", function() require("config.theme").use_tokyonight() end, { desc = "Theme — Tokyonight" })
+map("n", "<leader>om", function() require("config.theme").use_miasma()   end, { desc = "Theme — Miasma" })
+map("n", "<leader>on", function() require("config.theme").cycle(1)       end, { desc = "Theme — next" })
+map("n", "<leader>op", function() require("config.theme").cycle(-1)      end, { desc = "Theme — previous" })
+map("n", "<leader>oa", function() require("config.automation.autosave").toggle() end, { desc = "Autosave toggle" })
 
--- ── Toggle ────────────────────────────────────────────────────────────────────
+-- ── Swap ──────────────────────────────────────────────────────────────────────
 
-map("n", "<leader>ta", function() require("config.automation.autosave").toggle() end, { desc = "Toggle autosave on focus lost" })
+map("n", "<leader>ps", function() require("config.swap").swap() end,   { desc = "Swap — grab/swap value" })
+map("n", "<leader>pS", function() require("config.swap").cancel() end, { desc = "Swap — cancel" })
