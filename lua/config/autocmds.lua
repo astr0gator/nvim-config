@@ -86,7 +86,7 @@ autocmd("InsertEnter", {
   callback = function()
     vim.opt.cursorline = true
     vim.schedule(function()
-      local bg = vim.o.background == "dark" and "#333345" or "#e0e0e0"
+      local bg = vim.o.background == "dark" and "#333345" or "#f0f0f0"
       vim.api.nvim_set_hl(0, "CursorLine", { bg = bg })
     end)
   end,
