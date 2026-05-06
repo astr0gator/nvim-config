@@ -21,18 +21,19 @@ return {
         vim.keymap.set("n", "<Leader>miC", ":<C-U>call tablemode#spreadsheet#InsertColumn(0)<CR>", vim.tbl_extend("force", b, { desc = "Table: insert col before" }))
         vim.keymap.set("n", "<Leader>mic", ":<C-U>call tablemode#spreadsheet#InsertColumn(1)<CR>", vim.tbl_extend("force", b, { desc = "Table: insert col after" }))
 
-        -- Tab / Shift-Tab: next/prev cell (only on table lines)
+        -- Tab / Shift-Tab: next/prev cell (lands on cell content, not the | border)
         vim.keymap.set("n", "<Tab>", function()
           if vim.api.nvim_get_current_line():find("|") then
             vim.cmd("TableModeRealign")
-            vim.fn.search("|", "W")
+            vim.fn.search("|\\s*\\zs\\S", "W")
           end
         end, vim.tbl_extend("force", b, { desc = "Table: next cell" }))
 
         vim.keymap.set("n", "<S-Tab>", function()
           if vim.api.nvim_get_current_line():find("|") then
             vim.cmd("TableModeRealign")
-            vim.fn.search("|", "bW")
+            -- Move back to previous cell's content (last non-S before a |)
+            vim.fn.search("\\S\\ze\\s*|", "bW")
           end
         end, vim.tbl_extend("force", b, { desc = "Table: prev cell" }))
 
