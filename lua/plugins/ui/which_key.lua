@@ -32,6 +32,9 @@ return {
       -- ── Options ──
       { "<leader>o",  group = "options", icon = " " },
 
+      -- ── Markdown tables ──
+      { "<leader>m",  group = "table",   icon = " " },
+
       -- ── Misc ──
       { "<leader>?",  desc = "Key hints" },
 
