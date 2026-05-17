@@ -207,6 +207,11 @@ local function md_wrap(prefix, suffix)
     sr, sc, er, ec = er, ec, sr, sc
   end
 
+  if mode == "V" then
+    sc = 1
+    ec = #vim.fn.getline(er)
+  end
+
   local function wrapped_span(line, start_col, end_col)
     local search_from = 1
 

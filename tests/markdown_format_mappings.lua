@@ -50,4 +50,9 @@ vim.api.nvim_win_set_cursor(0, { 1, 2 })
 feed_keys("vee h")
 assert_eq(vim.api.nvim_get_current_line(), "hello", "<leader>h unwraps existing highlight from visual keys")
 
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- Area:" })
+vim.api.nvim_win_set_cursor(0, { 1, 2 })
+feed_keys("V h")
+assert_eq(vim.api.nvim_get_current_line(), "==- Area:==", "<leader>h wraps whole line from linewise visual mode")
+
 print("ok: markdown format mapping tests passed")
