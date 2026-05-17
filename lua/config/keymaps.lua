@@ -193,6 +193,97 @@ map("v", "<C-x>", '"+d',                     { noremap = true, silent = true, de
 
 map("n", "U", "<C-r>",                       { desc = "Redo" })
 
+-- ── Markdown: Format (visual mode) ──────────────────────────────────────────
+
+local function md_wrap(prefix, suffix)
+  local mode = vim.fn.mode()
+  local s = (mode == "v" or mode == "V" or mode == "\22") and vim.fn.getpos("v") or vim.fn.getpos("'<")
+  local e = (mode == "v" or mode == "V" or mode == "\22") and vim.fn.getcurpos() or vim.fn.getpos("'>")
+  local sr, sc = s[2], s[3]
+  local er, ec = e[2], e[3]
+  local plen, slen = #prefix, #suffix
+
+  if sr > er or (sr == er and sc > ec) then
+    sr, sc, er, ec = er, ec, sr, sc
+  end
+
+  local function wrapped_span(line, start_col, end_col)
+    local search_from = 1
+
+    while true do
+      local open_start, open_end = line:find(prefix, search_from, true)
+      if not open_start then
+        return nil
+      end
+
+      local close_start, close_end = line:find(suffix, open_end + 1, true)
+      if not close_start then
+        return nil
+      end
+
+      if start_col <= close_end and end_col >= open_start then
+        return open_start, open_end, close_start, close_end
+      end
+
+      search_from = close_end + 1
+    end
+  end
+
+  if sr == er then
+    local line = vim.fn.getline(sr)
+    local open_start, open_end, close_start, close_end = wrapped_span(line, sc, ec)
+    if open_start then
+      vim.fn.setline(sr, line:sub(1, open_start - 1) .. line:sub(open_end + 1, close_start - 1) .. line:sub(close_end + 1))
+      return
+    end
+
+    -- Case 1: markers are INSIDE the selection (user selected ==text==)
+    local sel = line:sub(sc, ec)
+    if sel:sub(1, plen) == prefix and sel:sub(-slen) == suffix then
+      local inner = sel:sub(plen + 1, -slen - 1)
+      vim.fn.setline(sr, line:sub(1, sc - 1) .. inner .. line:sub(ec + 1))
+      return
+    end
+    -- Case 2: markers are OUTSIDE the selection (user selected just "text" inside ==text==)
+    local before = line:sub(sc - plen, sc - 1)
+    local after  = line:sub(ec + 1, ec + slen)
+    if before == prefix and after == suffix then
+      vim.fn.setline(sr, line:sub(1, sc - plen - 1) .. line:sub(sc, ec) .. line:sub(ec + slen + 1))
+      return
+    end
+    -- Wrap: add markers around selection
+    vim.fn.setline(sr, line:sub(1, sc - 1) .. prefix .. line:sub(sc, ec) .. suffix .. line:sub(ec + 1))
+  else
+    local first = vim.fn.getline(sr)
+    local last = vim.fn.getline(er)
+    -- Case 1: markers inside selection
+    local first_sel = first:sub(sc)
+    local last_sel = last:sub(1, ec)
+    if first_sel:sub(1, plen) == prefix and last_sel:sub(-slen) == suffix then
+      vim.fn.setline(sr, first:sub(1, sc - 1) .. first_sel:sub(plen + 1))
+      vim.fn.setline(er, last_sel:sub(1, -slen - 1) .. last:sub(ec + 1))
+      return
+    end
+    -- Case 2: markers outside selection (on edges of first/last lines)
+    local before = first:sub(sc - plen, sc - 1)
+    local after  = last:sub(ec + 1, ec + slen)
+    if before == prefix and after == suffix then
+      vim.fn.setline(sr, first:sub(1, sc - plen - 1) .. first:sub(sc))
+      vim.fn.setline(er, last:sub(1, ec) .. last:sub(ec + slen + 1))
+      return
+    end
+    -- Wrap
+    vim.fn.setline(sr, first:sub(1, sc - 1) .. prefix .. first:sub(sc))
+    vim.fn.setline(er, last:sub(1, ec) .. suffix .. last:sub(ec + 1))
+  end
+end
+
+map("v", "<leader>b", function() md_wrap("**", "**") end, { desc = "Markdown — bold" })
+map("v", "<leader>i", function() md_wrap("*", "*") end,   { desc = "Markdown — italic" })
+map("v", "<leader>h", function() md_wrap("==", "==") end, { desc = "Markdown — highlight" })
+map("v", "<leader>s", function() md_wrap("~~", "~~") end, { desc = "Markdown — strikethrough" })
+map("v", "<leader>c", function() md_wrap("`", "`") end,   { desc = "Markdown — inline code" })
+
 -- ── Misc ──────────────────────────────────────────────────────────────────────
 
 -- ";" kept as native f/t repeat (reverted from ":" mapping)
