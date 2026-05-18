@@ -30,5 +30,14 @@ return {
       vim.opt.runtimepath:prepend(opts.parser_install_dir)
     end
     require("nvim-treesitter.configs").setup(opts)
+
+    -- Highlight ==text== in markdown (non-standard, not covered by Treesitter)
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "markdown",
+      callback = function()
+        vim.api.nvim_set_hl(0, "MdHighlight", { fg = "#1a1a1a", bg = "#f96714" })
+        vim.fn.matchadd("MdHighlight", "==[^=]\\+==")
+      end,
+    })
   end,
 }
