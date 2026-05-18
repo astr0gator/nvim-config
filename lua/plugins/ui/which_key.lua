@@ -40,6 +40,24 @@ return {
 
       -- ── Markdown tables ──
       { "<leader>m",  group = "table",   icon = " " },
+      { "<leader>mr", desc = "Realign" },
+      { "<leader>mf", desc = "Add formula" },
+      { "<leader>mF", desc = "Eval formulas" },
+      { "<leader>ms", desc = "Sort column asc" },
+      { "<leader>mS", desc = "Sort column desc" },
+      { "<leader>mdd", desc = "Delete row" },
+      { "<leader>mdc", desc = "Delete column" },
+      { "<leader>mic", desc = "Insert col after" },
+      { "<leader>miC", desc = "Insert col before" },
+      { "<leader>mir", desc = "Insert row below" },
+      { "<leader>miR", desc = "Insert row above" },
+      { "<leader>mn", desc = "First row" },
+      { "<leader>mN", desc = "Last row" },
+      { "<leader>m[", desc = "Cell start" },
+      { "<leader>m]", desc = "Cell end" },
+      { "<leader>me", desc = "Echo cell pos" },
+      { "<leader>m>", desc = "Move col right" },
+      { "<leader>m<", desc = "Move col left" },
 
       -- ── Misc ──
       { "<leader>?",  desc = "Key hints" },
@@ -55,8 +73,9 @@ return {
       -- ── Non-leader: Navigation ──
       { "gh",    desc = "Line start (non-blank)" },
       { "gl",    desc = "Line end" },
-      { "s",     desc = "Flash — jump to char" },
+      { ";",     desc = "Flash — jump to char" },
       { "S",     desc = "Flash — treesitter jump" },
+      { "`",     desc = "Go to mark (exact position)" },
       { "-",     desc = "Focus file tree" },
 
       -- ── Non-leader: Buffer ──
@@ -77,9 +96,28 @@ return {
       -- ── Non-leader: Multi-cursor ──
       { "<C-n>", desc = "Multi-cursor — select word" },
 
+      -- ── Non-leader: Search chars ──
+      { "f",     desc = "Find char forward" },
+      { "F",     desc = "Find char backward" },
+      { "t",     desc = "Till char forward" },
+      { "T",     desc = "Till char backward" },
+      { "'",     desc = "Repeat last f/t" },
+      { ",",     desc = "Reverse last f/t" },
+
+      -- ── Non-leader: Marks ──
+      { "m",     desc = "Set mark (m + letter)" },
+      { "`",     desc = "Jump to mark exact pos (` + letter)" },
+
       -- ── Non-leader: Misc ──
       { "U",     desc = "Redo" },
       { "<C-a>", desc = "Select all" },
+
+      -- ── Visual mode: Markdown format ──
+      { "<leader>b", mode = "v", desc = "Bold **" },
+      { "<leader>i", mode = "v", desc = "Italic *" },
+      { "<leader>h", mode = "v", desc = "Highlight ==" },
+      { "<leader>s", mode = "v", desc = "Strikethrough ~~" },
+      { "<leader>c", mode = "v", desc = "Inline code `" },
     },
   },
   keys = {
