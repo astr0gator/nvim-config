@@ -203,7 +203,7 @@ return {
 
         vim.keymap.set("i", "<S-Tab>", function()
           if not on_table_row() then
-            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<S-Tab>", true, false, true), "n", false)
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-d>", true, false, true), "n", false)
             return
           end
           vim.schedule(function()
