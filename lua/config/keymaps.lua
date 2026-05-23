@@ -312,6 +312,9 @@ map("n", "<leader>ot", function() require("config.theme").use_tokyonight() end, 
 map("n", "<leader>om", function() require("config.theme").use_miasma()   end, { desc = "Theme — Miasma" })
 map("n", "<leader>on", function() require("config.theme").cycle(1)       end, { desc = "Theme — next" })
 map("n", "<leader>op", function() require("config.theme").cycle(-1)      end, { desc = "Theme — previous" })
+map("n", "<leader>ow", function()
+  vim.opt_local.wrap = not vim.opt_local.wrap:get()
+end, { desc = "Toggle wrap" })
 map("n", "<leader>oa", function() require("config.automation.autosave").toggle() end, { desc = "Autosave toggle" })
 
 -- ── Swap ──────────────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ function M.setup()
         return
       end
       if vim.bo.modified and not vim.bo.readonly then
-        vim.cmd("silent write")
+        pcall(vim.cmd, "silent write")
       end
     end,
     desc = "Auto-save on focus lost",
