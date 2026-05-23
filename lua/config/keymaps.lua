@@ -285,7 +285,11 @@ end
 
 map("v", "<leader>b", function() md_wrap("**", "**") end, { desc = "Markdown — bold" })
 map("v", "<leader>i", function() md_wrap("*", "*") end,   { desc = "Markdown — italic" })
-map("v", "<leader>h", function() md_wrap("==", "==") end, { desc = "Markdown — highlight" })
+map("v", "<leader>h", function()
+  md_wrap("==", "==")
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+  vim.cmd("redraw")
+end, { desc = "Markdown — highlight" })
 map("v", "<leader>s", function() md_wrap("~~", "~~") end, { desc = "Markdown — strikethrough" })
 map("v", "<leader>c", function() md_wrap("`", "`") end,   { desc = "Markdown — inline code" })
 
