@@ -112,25 +112,23 @@ map("n", "<S-l>", "<cmd>bnext<CR>",          { desc = "Next buffer" })
 
 -- ── Edit: Delete (cut to register) ───────────────────────────────────────────
 
-map("n", "x",  'x',                          { noremap = true, desc = "Delete char — forward, cut to register" })
-map("n", "X",  'X',                          { noremap = true, desc = "Delete char — backward, cut to register" })
-map("n", "d",  'd',                          { noremap = true, desc = "Delete — with motion, cut to register" })
-map("v", "d",  'd',                          { noremap = true, desc = "Delete — with motion, cut to register" })
-map("n", "D",  'D',                          { noremap = true, desc = "Delete line — to end, cut to register" })
-map("n", "dd", 'dd',                         { noremap = true, desc = "Delete line — cut to register" })
--- Flash: r — remote flash motion for operators (e.g. dr + char = delete to any char on screen)
+map("n", "x",  'x',                          { noremap = true, desc = "Delete char — forward, cut to clipboard" })
+map("n", "X",  'X',                          { noremap = true, desc = "Delete char — backward, cut to clipboard" })
+map("n", "d",  '"_d',                        { noremap = true, desc = "Delete — with motion, void register (no clipboard)" })
+map("v", "d",  '"_d',                        { noremap = true, desc = "Delete — with motion, void register (no clipboard)" })
+map("n", "D",  '"_D',                        { noremap = true, desc = "Delete line — to end, void register (no clipboard)" })
+map("n", "dd", '"_dd',                       { noremap = true, desc = "Delete line — void register (no clipboard)" })
 
 -- ── Edit: Delete (void register) ──────────────────────────────────────────────
 
-map("n", "<leader>pd", '"_d',                 { noremap = true, desc = "Delete — void register" })
-map("v", "<leader>pd", '"_d',                 { noremap = true, desc = "Delete — void register" })
 
 -- ── Edit: Change (cut to register) ───────────────────────────────────────────
 
-map("n", "c",  'c',                          { noremap = true, desc = "Change — with motion, cut to register" })
-map("v", "c",  'c',                          { noremap = true, desc = "Change — with motion, cut to register" })
-map("n", "C",  'C',                          { noremap = true, desc = "Change line — to end, cut to register" })
-map("n", "cc", 'cc',                         { noremap = true, desc = "Change line — cut to register" })
+map("n", "c",  '"_c',                        { noremap = true, desc = "Change — with motion, void register (no clipboard)" })
+map("v", "c",  '"_c',                        { noremap = true, desc = "Change — with motion, void register (no clipboard)" })
+map("n", "C",  '"_C',                        { noremap = true, desc = "Change line — to end (=c$), void register (no clipboard)" })
+map("n", "cc", '"_cc',                       { noremap = true, desc = "Change line (=S), void register (no clipboard)" })
+map("n", "s",  '"_s',                        { noremap = true, desc = "Substitute char — void register (no clipboard)" })
 -- Flash: R — treesitter search motion (e.g. cR = change until a function definition)
 
 -- ── Edit: Change (void register) ──────────────────────────────────────────────
