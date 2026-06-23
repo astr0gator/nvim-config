@@ -62,13 +62,22 @@ autocmd("FileType", {
 
     local bopts = { buffer = true, noremap = true, silent = true }
 
-    -- Enter: toggle fold under cursor
+    -- Enter: on a list item, append a new bullet/number below and enter insert
+    -- mode (bullets.vim continuation); otherwise toggle a fold under the
+    -- cursor, or fall back to moving down a line.
     vim.keymap.set("n", "<CR>", function()
       if vim.fn.foldlevel(".") > 0 then
-        return "za"
+        vim.cmd("normal! za")
+        return
       end
-      return "<CR>"
-    end, vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle under cursor" }))
+      local line = vim.api.nvim_get_current_line()
+      if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
+        vim.api.nvim_feedkeys(
+          vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
+        return
+      end
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
+    end, vim.tbl_extend("force", bopts, { desc = "List — add item / toggle fold / line down" }))
 
     -- Ctrl+Enter: toggle all folds in buffer
     vim.keymap.set("n", "<C-CR>", function()
