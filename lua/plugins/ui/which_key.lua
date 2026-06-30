@@ -94,7 +94,8 @@ return {
       { "zR",    desc = "Fold — open all" },
 
       -- ── Non-leader: Multi-cursor ──
-      { "<C-n>", desc = "Multi-cursor — select word" },
+      { "<C-n>", desc = "Multi-cursor — select word, add next" },
+      { "<leader>A", desc = "Multi-cursor — select all matches" },
 
       -- ── Non-leader: Search chars ──
       { "f",     desc = "Find char forward" },
