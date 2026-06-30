@@ -66,14 +66,18 @@ autocmd("FileType", {
     -- mode (bullets.vim continuation); otherwise toggle a fold under the
     -- cursor, or fall back to moving down a line.
     vim.keymap.set("n", "<CR>", function()
-      if vim.fn.foldlevel(".") > 0 then
-        vim.cmd("normal! za")
-        return
-      end
+      -- List items win over folding: a `##` heading makes every line beneath
+      -- it foldable, so checking foldlevel first would make Enter fold (not
+      -- continue the list) for any list item living under a heading. Check
+      -- for a list item first; only fold on non-list foldable lines (headings).
       local line = vim.api.nvim_get_current_line()
       if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
         vim.api.nvim_feedkeys(
           vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
+        return
+      end
+      if vim.fn.foldlevel(".") > 0 then
+        vim.cmd("normal! za")
         return
       end
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
