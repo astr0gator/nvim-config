@@ -191,7 +191,9 @@ map("v", "<C-x>", '"+d',                     { noremap = true, silent = true, de
 
 map("n", "U", "<C-r>",                       { desc = "Redo" })
 
--- ── Markdown: Format (visual mode) ──────────────────────────────────────────
+-- ── Markdown: Format (<leader>M) ───────────────────────────────────────────
+-- Normal mode wraps the inner word under the cursor; visual mode wraps the
+-- selection. Repeating on already-wrapped text unwraps it (toggle).
 
 local function md_wrap(prefix, suffix)
   local mode = vim.fn.mode()
@@ -281,15 +283,55 @@ local function md_wrap(prefix, suffix)
   end
 end
 
-map("v", "<leader>b", function() md_wrap("**", "**") end, { desc = "Markdown — bold" })
-map("v", "<leader>i", function() md_wrap("*", "*") end,   { desc = "Markdown — italic" })
-map("v", "<leader>h", function()
-  md_wrap("==", "==")
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
-  vim.cmd("redraw")
-end, { desc = "Markdown — highlight" })
-map("v", "<leader>s", function() md_wrap("~~", "~~") end, { desc = "Markdown — strikethrough" })
-map("v", "<leader>c", function() md_wrap("`", "`") end,   { desc = "Markdown — inline code" })
+-- Normal mode: wrap the word under the cursor. Sets the '</'> marks and lets
+-- md_wrap operate in normal mode (no visual-mode juggling), so it is safe to
+-- invoke repeatedly and a second press toggles the wrap off.
+local function md_word(prefix, suffix)
+  local row, col = vim.fn.line("."), vim.fn.col(".")
+  local line = vim.fn.getline(row)
+  if line == "" then return end
+  local ch = line:sub(col, col)
+  if ch == "" or ch:match("%s") then return end
+  -- match `iw`: a run of the same class (keyword chars, or other non-space)
+  local function same(s)
+    if ch:match("[%w_]") then return s:match("[%w_]") ~= nil end
+    return s ~= "" and s:match("[%w_%s]") == nil
+  end
+  local sc = col
+  while sc > 1 and same(line:sub(sc - 1, sc - 1)) do sc = sc - 1 end
+  local n = #line
+  local ec = col
+  while ec < n and same(line:sub(ec + 1, ec + 1)) do ec = ec + 1 end
+  vim.fn.setpos("'<", { 0, row, sc, 0 })
+  vim.fn.setpos("'>", { 0, row, ec, 0 })
+  md_wrap(prefix, suffix)
+  -- land on the word so a repeat press toggles instead of re-wrapping
+  local nl = vim.fn.getline(row)
+  local c = sc
+  while c <= #nl and not same(nl:sub(c, c)) do c = c + 1 end
+  if c <= #nl then vim.api.nvim_win_set_cursor(0, { row, c - 1 }) end
+end
+
+-- Visual mode: wrap the selection. Highlight needs Esc + redraw to refresh conceal.
+local function md_visual(prefix, suffix)
+  md_wrap(prefix, suffix)
+  if suffix == "==" then
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+    vim.cmd("redraw")
+  end
+end
+
+local md_actions = {
+  b = { pre = "**", suf = "**", desc = "Markdown — bold" },
+  i = { pre = "*",  suf = "*",  desc = "Markdown — italic" },
+  h = { pre = "==", suf = "==", desc = "Markdown — highlight" },
+  s = { pre = "~~", suf = "~~", desc = "Markdown — strikethrough" },
+  c = { pre = "`",  suf = "`",  desc = "Markdown — inline code" },
+}
+for key, a in pairs(md_actions) do
+  map("n", "<leader>M" .. key, function() md_word(a.pre, a.suf) end, { desc = a.desc })
+  map("v", "<leader>M" .. key, function() md_visual(a.pre, a.suf) end, { desc = a.desc })
+end
 
 -- ── Misc ──────────────────────────────────────────────────────────────────────
 

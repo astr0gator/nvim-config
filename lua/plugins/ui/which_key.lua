@@ -113,12 +113,19 @@ return {
       { "U",     desc = "Redo" },
       { "<C-a>", desc = "Select all" },
 
-      -- ── Visual mode: Markdown format ──
-      { "<leader>b", mode = "v", desc = "Bold **" },
-      { "<leader>i", mode = "v", desc = "Italic *" },
-      { "<leader>h", mode = "v", desc = "Highlight ==" },
-      { "<leader>s", mode = "v", desc = "Strikethrough ~~" },
-      { "<leader>c", mode = "v", desc = "Inline code `" },
+      -- ── Markdown format (normal + visual): <leader>M ──
+      { "<leader>M",  group = "markdown format", icon = "✎ " },
+      { "<leader>Mb", desc = "Bold **" },
+      { "<leader>Mi", desc = "Italic *" },
+      { "<leader>Mh", desc = "Highlight ==" },
+      { "<leader>Ms", desc = "Strikethrough ~~" },
+      { "<leader>Mc", desc = "Inline code `" },
+      { "<leader>M",  group = "markdown format", mode = "v", icon = "✎ " },
+      { "<leader>Mb", mode = "v", desc = "Bold **" },
+      { "<leader>Mi", mode = "v", desc = "Italic *" },
+      { "<leader>Mh", mode = "v", desc = "Highlight ==" },
+      { "<leader>Ms", mode = "v", desc = "Strikethrough ~~" },
+      { "<leader>Mc", mode = "v", desc = "Inline code `" },
     },
   },
   keys = {
