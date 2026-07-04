@@ -195,6 +195,52 @@ map("n", "U", "<C-r>",                       { desc = "Redo" })
 -- Normal mode wraps the inner word under the cursor; visual mode wraps the
 -- selection. Repeating on already-wrapped text unwraps it (toggle).
 
+-- Find an existing prefix/suffix pair on `line` overlapping [start_col, end_col].
+-- Returns open_start, open_end, close_start, close_end (byte cols) or nil.
+local function wrapped_span(line, start_col, end_col, prefix, suffix)
+  local search_from = 1
+  while true do
+    local open_start, open_end = line:find(prefix, search_from, true)
+    if not open_start then return nil end
+    local close_start, close_end = line:find(suffix, open_end + 1, true)
+    if not close_start then return nil end
+    if start_col <= close_end and end_col >= open_start then
+      return open_start, open_end, close_start, close_end
+    end
+    search_from = close_end + 1
+  end
+end
+
+-- Wrap (or unwrap, if already wrapped) the single-line byte span [sc, ec] on row.
+-- Core routine shared by md_word (explicit span) and md_wrap (one-line selection).
+local function wrap_span(row, sc, ec, prefix, suffix)
+  local line = vim.fn.getline(row)
+  local plen, slen = #prefix, #suffix
+
+  local open_start, open_end, close_start, close_end = wrapped_span(line, sc, ec, prefix, suffix)
+  if open_start then
+    vim.fn.setline(row, line:sub(1, open_start - 1) .. line:sub(open_end + 1, close_start - 1) .. line:sub(close_end + 1))
+    return
+  end
+
+  -- Case 1: markers are INSIDE the span (user selected ==text==)
+  local sel = line:sub(sc, ec)
+  if sel:sub(1, plen) == prefix and sel:sub(-slen) == suffix then
+    vim.fn.setline(row, line:sub(1, sc - 1) .. sel:sub(plen + 1, -slen - 1) .. line:sub(ec + 1))
+    return
+  end
+  -- Case 2: markers are OUTSIDE the span (user selected just "text" inside ==text==)
+  local before = line:sub(sc - plen, sc - 1)
+  local after  = line:sub(ec + 1, ec + slen)
+  if before == prefix and after == suffix then
+    vim.fn.setline(row, line:sub(1, sc - plen - 1) .. line:sub(sc, ec) .. line:sub(ec + slen + 1))
+    return
+  end
+  -- Wrap: add markers around the span
+  vim.fn.setline(row, line:sub(1, sc - 1) .. prefix .. line:sub(sc, ec) .. suffix .. line:sub(ec + 1))
+end
+
+-- Visual mode: wrap the current selection (char/line/block, one or more lines).
 local function md_wrap(prefix, suffix)
   local mode = vim.fn.mode()
   local s = (mode == "v" or mode == "V" or mode == "\22") and vim.fn.getpos("v") or vim.fn.getpos("'<")
@@ -212,80 +258,34 @@ local function md_wrap(prefix, suffix)
     ec = #vim.fn.getline(er)
   end
 
-  local function wrapped_span(line, start_col, end_col)
-    local search_from = 1
-
-    while true do
-      local open_start, open_end = line:find(prefix, search_from, true)
-      if not open_start then
-        return nil
-      end
-
-      local close_start, close_end = line:find(suffix, open_end + 1, true)
-      if not close_start then
-        return nil
-      end
-
-      if start_col <= close_end and end_col >= open_start then
-        return open_start, open_end, close_start, close_end
-      end
-
-      search_from = close_end + 1
-    end
-  end
-
   if sr == er then
-    local line = vim.fn.getline(sr)
-    local open_start, open_end, close_start, close_end = wrapped_span(line, sc, ec)
-    if open_start then
-      vim.fn.setline(sr, line:sub(1, open_start - 1) .. line:sub(open_end + 1, close_start - 1) .. line:sub(close_end + 1))
-      return
-    end
-
-    -- Case 1: markers are INSIDE the selection (user selected ==text==)
-    local sel = line:sub(sc, ec)
-    if sel:sub(1, plen) == prefix and sel:sub(-slen) == suffix then
-      local inner = sel:sub(plen + 1, -slen - 1)
-      vim.fn.setline(sr, line:sub(1, sc - 1) .. inner .. line:sub(ec + 1))
-      return
-    end
-    -- Case 2: markers are OUTSIDE the selection (user selected just "text" inside ==text==)
-    local before = line:sub(sc - plen, sc - 1)
-    local after  = line:sub(ec + 1, ec + slen)
-    if before == prefix and after == suffix then
-      vim.fn.setline(sr, line:sub(1, sc - plen - 1) .. line:sub(sc, ec) .. line:sub(ec + slen + 1))
-      return
-    end
-    -- Wrap: add markers around selection
-    vim.fn.setline(sr, line:sub(1, sc - 1) .. prefix .. line:sub(sc, ec) .. suffix .. line:sub(ec + 1))
-  else
-    local first = vim.fn.getline(sr)
-    local last = vim.fn.getline(er)
-    -- Case 1: markers inside selection
-    local first_sel = first:sub(sc)
-    local last_sel = last:sub(1, ec)
-    if first_sel:sub(1, plen) == prefix and last_sel:sub(-slen) == suffix then
-      vim.fn.setline(sr, first:sub(1, sc - 1) .. first_sel:sub(plen + 1))
-      vim.fn.setline(er, last_sel:sub(1, -slen - 1) .. last:sub(ec + 1))
-      return
-    end
-    -- Case 2: markers outside selection (on edges of first/last lines)
-    local before = first:sub(sc - plen, sc - 1)
-    local after  = last:sub(ec + 1, ec + slen)
-    if before == prefix and after == suffix then
-      vim.fn.setline(sr, first:sub(1, sc - plen - 1) .. first:sub(sc))
-      vim.fn.setline(er, last:sub(1, ec) .. last:sub(ec + slen + 1))
-      return
-    end
-    -- Wrap
-    vim.fn.setline(sr, first:sub(1, sc - 1) .. prefix .. first:sub(sc))
-    vim.fn.setline(er, last:sub(1, ec) .. suffix .. last:sub(ec + 1))
+    wrap_span(sr, sc, ec, prefix, suffix)
+    return
   end
+
+  local first = vim.fn.getline(sr)
+  local last = vim.fn.getline(er)
+  local first_sel = first:sub(sc)
+  local last_sel = last:sub(1, ec)
+  if first_sel:sub(1, plen) == prefix and last_sel:sub(-slen) == suffix then
+    vim.fn.setline(sr, first:sub(1, sc - 1) .. first_sel:sub(plen + 1))
+    vim.fn.setline(er, last_sel:sub(1, -slen - 1) .. last:sub(ec + 1))
+    return
+  end
+  local before = first:sub(sc - plen, sc - 1)
+  local after  = last:sub(ec + 1, ec + slen)
+  if before == prefix and after == suffix then
+    vim.fn.setline(sr, first:sub(1, sc - plen - 1) .. first:sub(sc))
+    vim.fn.setline(er, last:sub(1, ec) .. last:sub(ec + slen + 1))
+    return
+  end
+  vim.fn.setline(sr, first:sub(1, sc - 1) .. prefix .. first:sub(sc))
+  vim.fn.setline(er, last:sub(1, ec) .. suffix .. last:sub(ec + 1))
 end
 
--- Normal mode: wrap the word under the cursor. Sets the '</'> marks and lets
--- md_wrap operate in normal mode (no visual-mode juggling), so it is safe to
--- invoke repeatedly and a second press toggles the wrap off.
+-- Normal mode: wrap the keyword run under the cursor. Computes the span and calls
+-- wrap_span directly — no mode() or '<'> dependency — so it always targets the
+-- word regardless of stale marks or a lingering visual selection.
 local function md_word(prefix, suffix)
   local row, col = vim.fn.line("."), vim.fn.col(".")
   local line = vim.fn.getline(row)
@@ -302,9 +302,7 @@ local function md_word(prefix, suffix)
   local n = #line
   local ec = col
   while ec < n and same(line:sub(ec + 1, ec + 1)) do ec = ec + 1 end
-  vim.fn.setpos("'<", { 0, row, sc, 0 })
-  vim.fn.setpos("'>", { 0, row, ec, 0 })
-  md_wrap(prefix, suffix)
+  wrap_span(row, sc, ec, prefix, suffix)
   -- land on the word so a repeat press toggles instead of re-wrapping
   local nl = vim.fn.getline(row)
   local c = sc

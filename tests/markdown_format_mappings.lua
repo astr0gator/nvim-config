@@ -81,6 +81,14 @@ set_line("hello, world", 0)
 trigger_map("<leader>Mb", "n")
 assert_eq(vim.api.nvim_get_current_line(), "**hello**, world", "<leader>Mb does not grab trailing comma")
 
+set_line("foo bar baz", 5) -- cursor mid-word, on 'a' of bar
+trigger_map("<leader>Mb", "n")
+assert_eq(vim.api.nvim_get_current_line(), "foo **bar** baz", "<leader>Mb works from mid-word")
+
+set_line("**foo** bar **baz**", 8) -- both neighbors already bold
+trigger_map("<leader>Mb", "n")
+assert_eq(vim.api.nvim_get_current_line(), "**foo** **bar** **baz**", "<leader>Mb bolds between two bold words")
+
 -- ── Keystroke flows (leave nvim in visual mode — kept last) ──
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "==hello==" })
 vim.api.nvim_win_set_cursor(0, { 1, 2 })
