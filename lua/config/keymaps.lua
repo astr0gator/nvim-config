@@ -179,6 +179,10 @@ end, { desc = "Yank clean — strip [ ] and | suffix" })
 
 map("n", "<leader>a", "ggVG", { desc = "Select all" })
 
+-- Yank the entire buffer. `yaa` = "yank around all" — a custom 3-key object
+-- (there's no built-in `aa`, so it can't collide with yaw / ya" / yap).
+map("n", "yaa", ":%y<CR>", { desc = "Yank — entire buffer" })
+
 -- ── Clipboard ─────────────────────────────────────────────────────────────────
 
 map("v", "<C-c>", '"+y',                     { noremap = true, silent = true, desc = "Clipboard — copy selection to system register (visual)" })

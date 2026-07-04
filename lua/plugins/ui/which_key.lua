@@ -13,7 +13,7 @@ return {
     },
     icons = { mappings = false, separator = " → ", group = "" },
     spec = {
-      -- ── Frequent (order 1–13): fill the left column(s) ──
+      -- ── Discovery (order 1–9): things you want hints for ──
       { "<leader>f",  desc = "Find files",       order = 1 },
       { "<leader>/",  desc = "Grep",             order = 2 },
       { "<leader>b",  desc = "Buffers",          order = 3 },
@@ -22,11 +22,12 @@ return {
       { "<leader>e",  group = "edit / md format", order = 6 },
       { "<leader>t",  group = "table",           order = 7 },
       { "<leader>;",  desc = "Command mode",     order = 8 },
-      { "<leader>w",  desc = "Save",             order = 9 },
-      { "<leader>q",  desc = "Save and quit",    order = 10 },
-      { "<leader>Q",  desc = "Quit (no save)",   order = 11 },
-      { "<leader>Z",  desc = "Save — all buffers", order = 12 },
-      { "<leader>a",  desc = "Select all",       order = 13 },
+      { "<leader>a",  desc = "Select all",       order = 9 },
+      -- memorized file ops — parked at the very end (order 90+); you know these
+      { "<leader>w",  desc = "Save",             order = 90 },
+      { "<leader>q",  desc = "Save and quit",    order = 91 },
+      { "<leader>Q",  desc = "Quit (no save)",   order = 92 },
+      { "<leader>Z",  desc = "Save — all buffers", order = 93 },
 
       -- ── edit / md format (normal + visual) ──
       { "<leader>eb", desc = "Bold **" },
@@ -139,6 +140,9 @@ return {
       -- ── Non-leader: Numbers ──
       { "<C-a>", desc = "Increment number" },
       { "<C-x>", desc = "Decrement number" },
+
+      -- ── Non-leader: Yank ──
+      { "yaa",   desc = "Yank — entire buffer" },
 
       -- ── Non-leader: Misc ──
       { "U",     desc = "Redo" },
