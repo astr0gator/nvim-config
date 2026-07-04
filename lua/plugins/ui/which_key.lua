@@ -1,6 +1,6 @@
 -- Configure which-key hints and the global key hint entrypoint.
--- No icons (kept text-only by request). Leader layout: frequent actions are
--- top-level leaves; the rest are grouped under mnemonic prefixes.
+-- No icons (text-only by request). Menu ordered via per-entry `order` so the
+-- frequent actions fill the first column(s) and the basics/groups come after.
 return {
   "folke/which-key.nvim",
   event = "VeryLazy",
@@ -13,18 +13,22 @@ return {
     },
     icons = { mappings = false, separator = " → ", group = "" },
     spec = {
-      -- ── Frequent (top of menu) ──
-      { "<leader>f",  desc = "Find files" },
-      { "<leader>/",  desc = "Grep" },
-      { "<leader>b",  desc = "Buffers" },
-      { "<leader>d",  desc = "File tree" },
-      { "<leader>;",  desc = "Command mode" },
-      { "<leader>x",  desc = "Close buffer" },
-      { "<leader>w",  desc = "Save" },
-      { "<leader>a",  desc = "Select all" },
+      -- ── Frequent (order 1–13): fill the left column(s) ──
+      { "<leader>f",  desc = "Find files",       order = 1 },
+      { "<leader>/",  desc = "Grep",             order = 2 },
+      { "<leader>b",  desc = "Buffers",          order = 3 },
+      { "<leader>x",  desc = "Close buffer",     order = 4 },
+      { "<leader>d",  desc = "File tree",        order = 5 },
+      { "<leader>e",  group = "edit / md format", order = 6 },
+      { "<leader>t",  group = "table",           order = 7 },
+      { "<leader>;",  desc = "Command mode",     order = 8 },
+      { "<leader>w",  desc = "Save",             order = 9 },
+      { "<leader>q",  desc = "Save and quit",    order = 10 },
+      { "<leader>Q",  desc = "Quit (no save)",   order = 11 },
+      { "<leader>Z",  desc = "Save — all buffers", order = 12 },
+      { "<leader>a",  desc = "Select all",       order = 13 },
 
-      -- ── e: edit / markdown format (normal + visual) ──
-      { "<leader>e",  group = "edit / md format" },
+      -- ── edit / md format (normal + visual) ──
       { "<leader>eb", desc = "Bold **" },
       { "<leader>ei", desc = "Italic *" },
       { "<leader>eh", desc = "Highlight ==" },
@@ -37,8 +41,7 @@ return {
       { "<leader>es", mode = "v", desc = "Strikethrough ~~" },
       { "<leader>ec", mode = "v", desc = "Inline code `" },
 
-      -- ── t: table ──
-      { "<leader>t",   group = "table" },
+      -- ── table ──
       { "<leader>tr",  desc = "Realign" },
       { "<leader>tf",  desc = "Add formula" },
       { "<leader>tF",  desc = "Eval formulas" },
@@ -58,19 +61,20 @@ return {
       { "<leader>t>",  desc = "Move col right" },
       { "<leader>t<",  desc = "Move col left" },
 
-      -- ── h: help ──
-      { "<leader>h",  group = "help" },
+      -- ── Basics / config groups (order 20+) ──
+      { "<leader>h",  group = "help",   order = 20 },
+      { "<leader>c",  group = "code",   order = 21 },
+      { "<leader>o",  group = "options", order = 22 },
+      { "<leader>p",  group = "palette", order = 23 },
+      { "<leader>s",  group = "swap",   order = 24 },
+      { "<leader>m",  group = "multi-cursor", order = 25 },
+
       { "<leader>hh", desc = "Help pages" },
       { "<leader>hk", desc = "Keymaps" },
       { "<leader>h?", desc = "Key hints" },
 
-      -- ── c: code / change ──
-      { "<leader>c",  group = "code / change" },
       { "<leader>ca", desc = "Code action (LSP)" },
-      { "<leader>cv", desc = "Change — void register" },
 
-      -- ── o: options / theme ──
-      { "<leader>o",  group = "options" },
       { "<leader>of", desc = "Theme — Flexoki" },
       { "<leader>ot", desc = "Theme — Tokyonight" },
       { "<leader>om", desc = "Theme — Miasma" },
@@ -79,23 +83,11 @@ return {
       { "<leader>ow", desc = "Toggle wrap" },
       { "<leader>oa", desc = "Autosave toggle" },
 
-      -- ── p: palette ──
-      { "<leader>p",  group = "palette" },
       { "<leader>pp", desc = "Command palette" },
 
-      -- ── q: quit / save ──
-      { "<leader>q",  group = "quit / save" },
-      { "<leader>qq", desc = "Save and quit" },
-      { "<leader>qQ", desc = "Quit without saving" },
-      { "<leader>qZ", desc = "Save — all buffers" },
-
-      -- ── s: swap ──
-      { "<leader>s",  group = "swap" },
       { "<leader>ss", desc = "Swap — grab/swap value" },
       { "<leader>sc", desc = "Swap — cancel" },
 
-      -- ── m: multi-cursor ──
-      { "<leader>m",  group = "multi-cursor" },
       { "<leader>ma", desc = "Select all matches" },
 
       -- ── Non-leader: Scroll ──

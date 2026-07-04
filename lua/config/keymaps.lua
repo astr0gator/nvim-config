@@ -54,10 +54,10 @@ vim.api.nvim_create_user_command("Bclose", close_current_buffer, {
 
 -- ── File ──────────────────────────────────────────────────────────────────────
 
-map("n", "<leader>w",  "<cmd>w<CR>",         { desc = "Save" })
-map("n", "<leader>qq", "<Esc>:wq<CR>",       { desc = "Save and quit" })
-map("n", "<leader>qQ", "<Esc>:q!<CR>",       { desc = "Quit without saving" })
-map("n", "<leader>qZ", "<cmd>Z<CR>",         { desc = "Save — all buffers" })
+map("n", "<leader>w", "<cmd>w<CR>",          { desc = "Save" })
+map("n", "<leader>Z", "<cmd>Z<CR>",          { desc = "Save — all buffers" })
+map("n", "<leader>q", "<Esc>:wq<CR>",        { desc = "Save and quit" })
+map("n", "<leader>Q", "<Esc>:q!<CR>",        { desc = "Quit without saving" })
 map("n", "<leader>x", close_current_buffer,  { desc = "Close buffer" })
 
 -- ── Shift Passthrough ──────────────────────────────────────────────────────────
@@ -132,9 +132,8 @@ map("n", "s",  '"_s',                        { noremap = true, desc = "Substitut
 -- Flash: R — treesitter search motion (e.g. cR = change until a function definition)
 
 -- ── Edit: Change (void register) ──────────────────────────────────────────────
-
-map("n", "<leader>cv", '"_c',                 { noremap = true, desc = "Change — void register" })
-map("v", "<leader>cv", '"_c',                 { noremap = true, desc = "Change — void register" })
+-- Bare c / C / cc already change to the void register ("_c) — see lines above.
+-- (Removed the redundant <leader>cv; bare c does the same thing.)
 
 -- ── Edit: Move Lines ──────────────────────────────────────────────────────────
 
