@@ -4,7 +4,7 @@ return {
   branch = "v3.x",
   cmd = "Neotree",
   keys = {
-    { "<leader>e", "<cmd>Neotree toggle filesystem reveal left<CR>", desc = "Toggle file tree" },
+    { "<leader>d", "<cmd>Neotree toggle filesystem reveal left<CR>", desc = "Toggle file tree" },
     { "-", function()
       if vim.bo.ft == "neo-tree" then
         vim.cmd.wincmd("p")

@@ -7,8 +7,8 @@ return {
     { "<leader>f", "<cmd>Telescope find_files<CR>", desc = "Telescope — find files" },
     { "<leader>/", "<cmd>Telescope live_grep<CR>", desc = "Telescope — grep in files" },
     { "<leader>b", "<cmd>Telescope buffers<CR>", desc = "Telescope — open buffers" },
-    { "<leader>h", "<cmd>Telescope help_tags<CR>", desc = "Telescope — help pages" },
-    { "<leader>k", "<cmd>Telescope keymaps<CR>", desc = "Telescope — keymaps" },
+    { "<leader>hh", "<cmd>Telescope help_tags<CR>", desc = "Telescope — help pages" },
+    { "<leader>hk", "<cmd>Telescope keymaps<CR>", desc = "Telescope — keymaps" },
   },
   dependencies = {
     "nvim-lua/plenary.nvim",

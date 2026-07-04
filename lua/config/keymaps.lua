@@ -54,10 +54,10 @@ vim.api.nvim_create_user_command("Bclose", close_current_buffer, {
 
 -- ── File ──────────────────────────────────────────────────────────────────────
 
-map("n", "<leader>w", "<cmd>w<CR>",          { desc = "Save" })
-map("n", "<leader>Z", "<cmd>Z<CR>",          { desc = "Save — all buffers" })
-map("n", "<leader>q", "<Esc>:wq<CR>",        { desc = "Save and quit" })
-map("n", "<leader>Q", "<Esc>:q!<CR>",        { desc = "Quit without saving" })
+map("n", "<leader>w",  "<cmd>w<CR>",         { desc = "Save" })
+map("n", "<leader>qq", "<Esc>:wq<CR>",       { desc = "Save and quit" })
+map("n", "<leader>qQ", "<Esc>:q!<CR>",       { desc = "Quit without saving" })
+map("n", "<leader>qZ", "<cmd>Z<CR>",         { desc = "Save — all buffers" })
 map("n", "<leader>x", close_current_buffer,  { desc = "Close buffer" })
 
 -- ── Shift Passthrough ──────────────────────────────────────────────────────────
@@ -133,8 +133,8 @@ map("n", "s",  '"_s',                        { noremap = true, desc = "Substitut
 
 -- ── Edit: Change (void register) ──────────────────────────────────────────────
 
-map("n", "<leader>pc", '"_c',                 { noremap = true, desc = "Change — void register" })
-map("v", "<leader>pc", '"_c',                 { noremap = true, desc = "Change — void register" })
+map("n", "<leader>cv", '"_c',                 { noremap = true, desc = "Change — void register" })
+map("v", "<leader>cv", '"_c',                 { noremap = true, desc = "Change — void register" })
 
 -- ── Edit: Move Lines ──────────────────────────────────────────────────────────
 
@@ -176,8 +176,9 @@ map("n", "yc", function()
 end, { desc = "Yank clean — strip [ ] and | suffix" })
 
 -- ── Select All ────────────────────────────────────────────────────────────────
+-- <C-a> is Vim's increment-number key (restored to default); select-all lives on <leader>a.
 
-map("n", "<C-a>", "ggVG", { desc = "Select all" })
+map("n", "<leader>a", "ggVG", { desc = "Select all" })
 
 -- ── Clipboard ─────────────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ map("v", "<C-x>", '"+d',                     { noremap = true, silent = true, de
 
 map("n", "U", "<C-r>",                       { desc = "Redo" })
 
--- ── Markdown: Format (<leader>M) ───────────────────────────────────────────
+-- ── Markdown: Format (<leader>e) ───────────────────────────────────────────
 -- Normal mode wraps the inner word under the cursor; visual mode wraps the
 -- selection. Repeating on already-wrapped text unwraps it (toggle).
 
@@ -327,8 +328,8 @@ local md_actions = {
   c = { pre = "`",  suf = "`",  desc = "Markdown — inline code" },
 }
 for key, a in pairs(md_actions) do
-  map("n", "<leader>M" .. key, function() md_word(a.pre, a.suf) end, { desc = a.desc })
-  map("v", "<leader>M" .. key, function() md_visual(a.pre, a.suf) end, { desc = a.desc })
+  map("n", "<leader>e" .. key, function() md_word(a.pre, a.suf) end, { desc = a.desc })
+  map("v", "<leader>e" .. key, function() md_visual(a.pre, a.suf) end, { desc = a.desc })
 end
 
 -- ── Misc ──────────────────────────────────────────────────────────────────────
@@ -339,7 +340,7 @@ map("t", "<Esc>", "<C-\\><C-n>",             { noremap = true, silent = true, de
 
 -- ── Which-key ─────────────────────────────────────────────────────────────────
 
-map("n", "<leader>?", function()
+map("n", "<leader>h?", function()
   require("which-key").show({ global = true })
 end, { desc = "Show key hints" })
 
@@ -357,5 +358,5 @@ map("n", "<leader>oa", function() require("config.automation.autosave").toggle()
 
 -- ── Swap ──────────────────────────────────────────────────────────────────────
 
-map("n", "<leader>ps", function() require("config.swap").swap() end,   { desc = "Swap — grab/swap value" })
-map("n", "<leader>pS", function() require("config.swap").cancel() end, { desc = "Swap — cancel" })
+map("n", "<leader>ss", function() require("config.swap").swap() end,   { desc = "Swap — grab/swap value" })
+map("n", "<leader>sc", function() require("config.swap").cancel() end, { desc = "Swap — cancel" })

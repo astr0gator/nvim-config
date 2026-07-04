@@ -1,7 +1,7 @@
 -- Swap register: grab a value, move to another, swap them.
 --
 -- Usage:
---   <leader>ps  first call: grabs the node/value under cursor
+--   <leader>ss  first call: grabs the node/value under cursor
 --              second call: swaps it with the node/value under cursor now
 
 local M = {}
