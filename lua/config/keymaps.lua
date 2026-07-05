@@ -97,10 +97,11 @@ map({ "n", "o" }, "<C-0>", "$",              { noremap = true, desc = "Navigate 
 
 -- ── Scroll ────────────────────────────────────────────────────────────────────
 
+-- Half-page scroll on Alt-j/k only. <C-j>/<C-k> were dropped: they leaked into
+-- pickers/modals and <C-j> reads as <CR> in some, closing the window. Ctrl-D/U
+-- is OS-taken, so Alt-j/k (which center the cursor) is the one scroll binding.
 map({ "n", "v" }, "<A-j>", "<C-d>zz",        { noremap = true, silent = true, desc = "Scroll — half page down, center cursor" })
 map({ "n", "v" }, "<A-k>", "<C-u>zz",        { noremap = true, silent = true, desc = "Scroll — half page up, center cursor" })
-map({ "n", "v", "x" }, "<C-j>", "<C-d>",    { remap = true, silent = true, desc = "Scroll — half page down" })
-map({ "n", "v", "x" }, "<C-k>", "<C-u>",    { remap = true, silent = true, desc = "Scroll — half page up" })
 map("n", "zt", "H", { noremap = true, desc = "Scroll — current line to top" })
 map("n", "zz", "M", { noremap = true, desc = "Scroll — current line to center" })
 map("n", "zb", "L", { noremap = true, desc = "Scroll — current line to bottom" })
