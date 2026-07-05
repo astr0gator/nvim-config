@@ -7,12 +7,11 @@ return {
     vim.g.table_mode_align_char = ":"
     -- Do NOT set table_mode_always_active — vim-table-mode treats ANY line
     -- starting with | as a table row and will corrupt non-table content.
-    -- Disable the plugin's own <Leader>t* mappings. They include <Leader>tr,
-    -- which runs the plugin's :TableModeRealign — a buggy aligner that mangles
-    -- wide/unicode tables (spaces inside separators, misaligned pipes). The
-    -- custom aligner below replaces it; leaving the plugin's maps enabled lets
-    -- one stray <Leader>tr ruin a table. Our <Leader>m* maps call the plugin's
-    -- functions directly, so they don't need these default maps.
+    -- The plugin's DEFAULT mappings live under <Leader>t* (e.g. <Leader>tr runs
+    -- its :TableModeRealign — a buggy aligner that mangles wide/unicode tables).
+    -- Disable them, then rebind the SAME <Leader>t* prefix to the safer wrappers
+    -- below: they call the plugin's functions directly but route realign through
+    -- the custom aligner. Reclaims <Leader>t = "table" with no conflict.
     vim.g.table_mode_disable_mappings = 1
     -- The plugin also auto-realigns on CursorHold (~4s idle) when table mode is
     -- active (table_mode_auto_align=1) — same buggy aligner. Kill it so even if
@@ -31,22 +30,22 @@ return {
         local bm = function(desc) return vim.tbl_extend("force", b, { desc = desc }) end
 
         -- ── Table: formula ──
-        -- (Realign <Leader>mr is mapped further below, after safe_realign.)
-        vim.keymap.set("n", "<Leader>mf", ":TableAddFormula<CR>", bm("Add formula"))
-        vim.keymap.set("n", "<Leader>mF", ":TableEvalFormulaLine<CR>", bm("Eval formulas"))
+        -- (Realign <Leader>tr is mapped further below, after safe_realign.)
+        vim.keymap.set("n", "<Leader>tf", ":TableAddFormula<CR>", bm("Add formula"))
+        vim.keymap.set("n", "<Leader>tF", ":TableEvalFormulaLine<CR>", bm("Eval formulas"))
 
         -- ── Table: sort ──
-        vim.keymap.set("n", "<Leader>ms", ":TableSort<CR>", bm("Sort column asc"))
-        vim.keymap.set("n", "<Leader>mS", ":TableSort!<CR>", bm("Sort column desc"))
+        vim.keymap.set("n", "<Leader>ts", ":TableSort<CR>", bm("Sort column asc"))
+        vim.keymap.set("n", "<Leader>tS", ":TableSort!<CR>", bm("Sort column desc"))
 
         -- ── Table: delete ──
-        vim.keymap.set("n", "<Leader>mdd", ":<C-U>call tablemode#spreadsheet#DeleteRow()<CR>", bm("Delete row"))
-        vim.keymap.set("n", "<Leader>mdc", ":<C-U>call tablemode#spreadsheet#DeleteColumn()<CR>", bm("Delete column"))
+        vim.keymap.set("n", "<Leader>tdd", ":<C-U>call tablemode#spreadsheet#DeleteRow()<CR>", bm("Delete row"))
+        vim.keymap.set("n", "<Leader>tdc", ":<C-U>call tablemode#spreadsheet#DeleteColumn()<CR>", bm("Delete column"))
 
         -- ── Table: insert ──
-        vim.keymap.set("n", "<Leader>mic", ":<C-U>call tablemode#spreadsheet#InsertColumn(1)<CR>", bm("Insert col after"))
-        vim.keymap.set("n", "<Leader>miC", ":<C-U>call tablemode#spreadsheet#InsertColumn(0)<CR>", bm("Insert col before"))
-        vim.keymap.set("n", "<Leader>mir", function()
+        vim.keymap.set("n", "<Leader>tic", ":<C-U>call tablemode#spreadsheet#InsertColumn(1)<CR>", bm("Insert col after"))
+        vim.keymap.set("n", "<Leader>tiC", ":<C-U>call tablemode#spreadsheet#InsertColumn(0)<CR>", bm("Insert col before"))
+        vim.keymap.set("n", "<Leader>tir", function()
           local lnum = vim.fn.line(".")
           local line = vim.fn.getline(lnum)
           -- Clear cell contents, keep pipe structure
@@ -58,7 +57,7 @@ return {
           safe_realign()
           vim.fn.search("|\\s*\\zs\\S", "cW")
         end, vim.tbl_extend("force", b, { desc = "Insert row below" }))
-        vim.keymap.set("n", "<Leader>miR", function()
+        vim.keymap.set("n", "<Leader>tiR", function()
           local lnum = vim.fn.line(".")
           local line = vim.fn.getline(lnum)
           local empty = line:gsub("([^|]+)", function(cell)
@@ -71,11 +70,11 @@ return {
         end, vim.tbl_extend("force", b, { desc = "Insert row above" }))
 
         -- ── Table: navigate ──
-        vim.keymap.set("n", "<Leader>mn", ":<C-U>call tablemode#spreadsheet#MoveToFirstRow()<CR>", bm("First row"))
-        vim.keymap.set("n", "<Leader>mN", ":<C-U>call tablemode#spreadsheet#MoveToLastRow()<CR>", bm("Last row"))
-        vim.keymap.set("n", "<Leader>m[", ":<C-U>call tablemode#spreadsheet#MoveToStartOfCell()<CR>", bm("Cell start"))
-        vim.keymap.set("n", "<Leader>m]", ":<C-U>call tablemode#spreadsheet#MoveToEndOfCell()<CR>", bm("Cell end"))
-        vim.keymap.set("n", "<Leader>me", ":<C-U>call tablemode#spreadsheet#EchoCell()<CR>", bm("Echo cell pos"))
+        vim.keymap.set("n", "<Leader>tn", ":<C-U>call tablemode#spreadsheet#MoveToFirstRow()<CR>", bm("First row"))
+        vim.keymap.set("n", "<Leader>tN", ":<C-U>call tablemode#spreadsheet#MoveToLastRow()<CR>", bm("Last row"))
+        vim.keymap.set("n", "<Leader>t[", ":<C-U>call tablemode#spreadsheet#MoveToStartOfCell()<CR>", bm("Cell start"))
+        vim.keymap.set("n", "<Leader>t]", ":<C-U>call tablemode#spreadsheet#MoveToEndOfCell()<CR>", bm("Cell end"))
+        vim.keymap.set("n", "<Leader>te", ":<C-U>call tablemode#spreadsheet#EchoCell()<CR>", bm("Echo cell pos"))
 
         local function on_table_row()
           local line = vim.api.nvim_get_current_line()
@@ -373,7 +372,7 @@ return {
 
         -- Realign — uses the custom aligner above (correct for long/unicode
         -- cells), not the plugin's :TableModeRealign.
-        vim.keymap.set("n", "<Leader>mr", safe_realign, bm("Realign"))
+        vim.keymap.set("n", "<Leader>tr", safe_realign, bm("Realign"))
         -- Expose safe_realign to VimL so we can redirect the plugin's function.
         _G.__table_realign = safe_realign
         -- Neutralize the plugin's realign completely. Every caller — the
@@ -420,8 +419,8 @@ return {
           safe_realign()
         end
 
-        vim.keymap.set("n", "<Leader>m>", function() swap_col(1) end, bm("Move col right"))
-        vim.keymap.set("n", "<Leader>m<", function() swap_col(-1) end, bm("Move col left"))
+        vim.keymap.set("n", "<Leader>t>", function() swap_col(1) end, bm("Move col right"))
+        vim.keymap.set("n", "<Leader>t<", function() swap_col(-1) end, bm("Move col left"))
 
         -- Parse a header line into cells: {text, width}
         local function parse_cells(line)
