@@ -97,9 +97,14 @@ map({ "n", "o" }, "<C-0>", "$",              { noremap = true, desc = "Navigate 
 
 -- ── Scroll ────────────────────────────────────────────────────────────────────
 
--- Half-page scroll on Alt-j/k only. <C-j>/<C-k> were dropped: they leaked into
--- pickers/modals and <C-j> reads as <CR> in some, closing the window. Ctrl-D/U
--- is OS-taken, so Alt-j/k (which center the cursor) is the one scroll binding.
+-- Scroll on both Ctrl-j/k and Alt-j/k. Ctrl-j/k use remap=true on purpose: they
+-- route through neoscroll.nvim's <C-d>/<C-u> mappings so you get the SMOOTH
+-- animation — do NOT switch them to noremap or a raw count, that bypasses the
+-- plugin and snaps instantly. Alt-j/k = half-page jump that re-centers (zz).
+-- Note: Ctrl-j/k leak into pickers/modals and Ctrl-j can read as <CR> in some,
+-- closing the window — if that bites, drop them and use Alt only.
+map({ "n", "v", "x" }, "<C-j>", "<C-d>",     { remap = true, silent = true, desc = "Scroll — half page down" })
+map({ "n", "v", "x" }, "<C-k>", "<C-u>",     { remap = true, silent = true, desc = "Scroll — half page up" })
 map({ "n", "v" }, "<A-j>", "<C-d>zz",        { noremap = true, silent = true, desc = "Scroll — half page down, center cursor" })
 map({ "n", "v" }, "<A-k>", "<C-u>zz",        { noremap = true, silent = true, desc = "Scroll — half page up, center cursor" })
 map("n", "zt", "H", { noremap = true, desc = "Scroll — current line to top" })

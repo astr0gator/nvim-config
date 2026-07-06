@@ -92,8 +92,10 @@ return {
       { "<leader>ma", desc = "Select all matches" },
 
       -- ── Non-leader: Scroll ──
-      { "<A-j>", desc = "Scroll — half page down" },
-      { "<A-k>", desc = "Scroll — half page up" },
+      { "<C-j>", desc = "Scroll — half page down" },
+      { "<C-k>", desc = "Scroll — half page up" },
+      { "<A-j>", desc = "Scroll — half page down, center cursor" },
+      { "<A-k>", desc = "Scroll — half page up, center cursor" },
 
       -- ── Non-leader: Tabs ──
       { "gt",    desc = "Next tab" },
