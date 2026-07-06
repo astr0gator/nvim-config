@@ -103,6 +103,29 @@ return {
           return false
         end
 
+        -- Lenient header check for CREATION only: a line with ≥4 pipes that
+        -- isn't already a |...| table row. Lets headers without a leading pipe
+        -- (e.g. "score | name | ...") convert on Tab. The 4-pipe floor avoids
+        -- misfiring on prose that merely contains a pipe — a bare "a | b" is
+        -- left alone; use an explicit leading | (| a | b |) for short tables.
+        -- Can't be inside a table here (on_table_row is false ⇒ no leading |).
+        local function looks_like_header()
+          local _, count = vim.api.nvim_get_current_line():gsub("%|", "|")
+          return count >= 4
+        end
+
+        -- Decide what <Tab> does: "create" (start/extend a table), "next" (move
+        -- to the next cell), or nil (fall through to the key default). Creation
+        -- is lenient (looks_like_header); navigation stays strict (on_table_row
+        -- ⇒ leading |) so Tab never misfires on prose mid-table.
+        local function tab_target()
+          if on_table_row() then
+            return in_existing_table() and "next" or "create"
+          elseif looks_like_header() then
+            return "create"
+          end
+        end
+
         -- Display width of a string (multibyte-aware) — this is what makes a
         -- cell line up on screen. vim-table-mode's :TableModeRealign pads by
         -- byte length and is unreliable on long/unicode cells: it fails to
@@ -425,6 +448,10 @@ return {
         -- Parse a header line into cells: {text, width}
         local function parse_cells(line)
           line = line:gsub("%s*$", ""):gsub("|%s*$", "")
+          -- Allow headers without a leading pipe (e.g. "score | name | ..."):
+          -- the gmatch below keys off a leading |, so synthesize one when
+          -- absent, otherwise the first cell ("score") is silently dropped.
+          if line:sub(1, 1) ~= "|" then line = "|" .. line end
           local cells = {}
           for cell in line:gmatch("|([^|]*)") do
             local t = cell:gsub("^%s*(.-)%s*$", "%1")
@@ -471,21 +498,21 @@ return {
         end
 
         vim.keymap.set("n", "<Tab>", function()
-          if not on_table_row() then
-            vim.api.nvim_feedkeys("\22", "n", false)
-            return
-          end
-          if not in_existing_table() then create_table() else next_cell() end
+          local t = tab_target()
+          if t == "create" then create_table()
+          elseif t == "next" then next_cell()
+          else vim.api.nvim_feedkeys("\22", "n", false) end
         end, vim.tbl_extend("force", b, { desc = "Table: next cell" }))
 
         vim.keymap.set("i", "<Tab>", function()
-          if not on_table_row() then
+          local t = tab_target()
+          if not t then
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
             return
           end
           vim.schedule(function()
             vim.cmd("stopinsert")
-            if not in_existing_table() then create_table() else next_cell() end
+            if t == "create" then create_table() else next_cell() end
             vim.cmd("startinsert")
           end)
         end, vim.tbl_extend("force", b, { desc = "Table: next cell (insert)" }))
