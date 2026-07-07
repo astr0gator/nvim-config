@@ -23,8 +23,16 @@ return {
     end
 
     local function enter_insert_after_checkbox(lnum, checkbox_line)
-      vim.api.nvim_win_set_cursor(0, { lnum, math.max(#checkbox_line - 1, 0) })
-      vim.api.nvim_feedkeys("a", "n", false)
+      -- Mode-aware: from insert mode (the Enter mapping) we are already inserting,
+      -- so just place the cursor past the trailing space. From normal mode
+      -- (ta/to/tO) append with "a" to enter insert mode.
+      local mode = vim.api.nvim_get_mode().mode
+      if mode == "i" or mode == "R" then
+        vim.api.nvim_win_set_cursor(0, { lnum, #checkbox_line })
+      else
+        vim.api.nvim_win_set_cursor(0, { lnum, math.max(#checkbox_line - 1, 0) })
+        vim.api.nvim_feedkeys("a", "n", false)
+      end
     end
 
     local function insert_checkbox(position)
@@ -77,9 +85,45 @@ return {
 
     _G.toggle_checkbox = toggle_checkbox
 
+    -- Detect a markdown task checkbox: `[ ]`, `[x]`, `- [ ]`, `* [X]`, `1. [ ]`, ...
+    -- (with or without a leading bullet/number marker).
+    local function is_checkbox_line(line)
+      local rest = line:match("^%s*(.*)$") or ""
+      return rest:match("^%[[ xX]%]") ~= nil
+          or rest:match("^[%-%*%+]%s+%[[ xX]%]") ~= nil
+          or rest:match("^%d+[%.%)]%s+%[[ xX]%]") ~= nil
+    end
+
+    -- Enter on a checkbox line: spawn a fresh unchecked `- [ ] ` below, or — when
+    -- the item is empty — exit the list (mirrors bullets.vim for empty items).
+    local function continue_checkbox()
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      local current = vim.api.nvim_get_current_line()
+      local indent, _, body = split_task_line(current)
+
+      if body == "" then
+        vim.api.nvim_set_current_line(indent)
+        enter_insert_after_checkbox(row, indent)
+        return
+      end
+
+      insert_checkbox("below")
+    end
+
+    _G.markdown_is_checkbox = is_checkbox_line
+    _G.markdown_continue_checkbox = continue_checkbox
+
     local function set_markdown_task_maps(bufnr)
-      -- Auto-continue bullets, numbers, and checkboxes on Enter
-      vim.cmd([[imap <buffer> <CR> <Plug>(bullets-newline)]])
+      -- Enter (insert mode): continue a checkbox with a fresh `- [ ] ` below;
+      -- otherwise defer to bullets.vim for plain bullets / numbered lists.
+      vim.keymap.set("i", "<CR>", function()
+        if is_checkbox_line(vim.api.nvim_get_current_line()) then
+          continue_checkbox()
+        else
+          vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
+        end
+      end, { buffer = bufnr, desc = "List — continue checkbox / bullet on Enter" })
 
       vim.keymap.set("n", "td", toggle_checkbox, { buffer = bufnr, desc = "Toggle checkbox" })
 

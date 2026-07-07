@@ -71,6 +71,12 @@ autocmd("FileType", {
       -- continue the list) for any list item living under a heading. Check
       -- for a list item first; only fold on non-list foldable lines (headings).
       local line = vim.api.nvim_get_current_line()
+      -- Checkbox lines match the bullet pattern too, but must continue as `- [ ]`
+      -- (not a plain `- `), so handle them before the bullet branch.
+      if _G.markdown_is_checkbox and _G.markdown_is_checkbox(line) then
+        _G.markdown_continue_checkbox()
+        return
+      end
       if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
         vim.api.nvim_feedkeys(
           vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
