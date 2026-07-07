@@ -107,9 +107,9 @@ map({ "n", "v", "x" }, "<C-j>", "<C-d>",     { remap = true, silent = true, desc
 map({ "n", "v", "x" }, "<C-k>", "<C-u>",     { remap = true, silent = true, desc = "Scroll — half page up" })
 map({ "n", "v" }, "<A-j>", "<C-d>zz",        { noremap = true, silent = true, desc = "Scroll — half page down, center cursor" })
 map({ "n", "v" }, "<A-k>", "<C-u>zz",        { noremap = true, silent = true, desc = "Scroll — half page up, center cursor" })
-map("n", "zt", "H", { noremap = true, desc = "Scroll — current line to top" })
-map("n", "zz", "M", { noremap = true, desc = "Scroll — current line to center" })
-map("n", "zb", "L", { noremap = true, desc = "Scroll — current line to bottom" })
+-- zz/zt/zb are native: they scroll the CONTENT so the current line is centered /
+-- top / bottom. The cursor stays on its line (it does NOT move). H/M/L are the
+-- opposite — they jump the cursor — so don't remap zz/zt/zb to those.
 
 -- ── Buffer Cycle ───────────────────────────────────────────────────────────────
 
@@ -185,9 +185,12 @@ end, { desc = "Yank clean — strip [ ] and | suffix" })
 
 map("n", "<leader>a", "ggVG", { desc = "Select all" })
 
--- Yank the entire buffer. `yaa` = "yank around all" — a custom 3-key object
--- (there's no built-in `aa`, so it can't collide with yaw / ya" / yap).
-map("n", "yaa", ":%y<CR>", { desc = "Yank — entire buffer" })
+-- "around all" text object: `aa` selects the entire buffer. Defined once in
+-- operator-pending + visual mode, so it composes with every operator — no dialect:
+--   yaa (yank) · daa (delete) · caa (change) · >aa (indent) · =aa (format) · vaa (select)
+-- `aa` adds no timeout over built-in `a`-objects: `a` is already ambiguous (aw/ap/as…).
+map("o", "aa", "<Cmd>normal! ggVG<CR>", { silent = true, desc = "Object — entire buffer (around all)" })
+map("x", "aa", "<Cmd>normal! ggVG<CR>", { silent = true, desc = "Object — entire buffer (around all)" })
 
 -- ── Clipboard ─────────────────────────────────────────────────────────────────
 

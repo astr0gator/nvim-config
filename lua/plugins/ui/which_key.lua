@@ -143,9 +143,6 @@ return {
       { "<C-a>", desc = "Increment number" },
       { "<C-x>", desc = "Decrement number" },
 
-      -- ── Non-leader: Yank ──
-      { "yaa",   desc = "Yank — entire buffer" },
-
       -- ── Non-leader: Misc ──
       { "U",     desc = "Redo" },
     },
