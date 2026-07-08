@@ -30,6 +30,12 @@ local function press_tab()
   info.callback()
 end
 
+local function realign_table()
+  local info = vim.fn.maparg("<leader>tr", "n", false, true)
+  assert_eq(type(info.callback), "function", "<leader>tr normal-mode callback exists")
+  info.callback()
+end
+
 -- Case 1: header WITHOUT a leading pipe converts (the restored convenience).
 set_line("score | name | l-value | ai | apa | eo | biztech |")
 press_tab()
@@ -65,5 +71,23 @@ press_tab()
 local r4 = buf_lines()
 assert_eq(#r4, 1, "case4: prose not turned into a table (still 1 row)")
 assert_eq(r4[1], "just some prose with no pipe here", "case4: prose text intact")
+
+-- Case 5: previous hard-wrap output is rejoined by default. Continuation rows
+-- with an empty first cell made separators look like they jumped:
+-- | key | desk@ourdomain "as authorized |
+-- |     | representative of Client      |
+vim.g.table_realign_width = nil
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+  "| Category | Manual incumbent | Risk |",
+  "| --- | --- | --- |",
+  "| SaaS | desk@ourdomain \"as authorized | low |",
+  "|      | representative of Client |     |",
+})
+vim.api.nvim_win_set_cursor(0, { 3, 0 })
+realign_table()
+local r5 = buf_lines()
+assert_eq(#r5, 3, "case5: default realign rejoins continuation rows instead of hard-wrapping")
+assert_eq(r5[3]:find("authorized representative", 1, true) ~= nil, true,
+  "case5: continuation text is folded back into the logical row")
 
 print("ok: table creation tests passed (incl. no-leading-pipe header)")

@@ -126,6 +126,26 @@ return {
           end
         end
 
+        -- Markdown inline markup whose delimiters get concealed on render
+        -- (treesitter markdown_inline conceal, active at conceallevel=2):
+        -- bold/italic markers, strikethrough, code-span backticks, and link
+        -- syntax collapsing to just its text. Padding must be sized to this
+        -- rendered width, not raw source width — confirmed live: a cell like
+        -- `thesis_dealcraft.md` lines up correctly in insert mode (backticks
+        -- visible) but the trailing pipe drifts 2 cols left in normal mode
+        -- once the backticks conceal, since raw-width padding didn't budget
+        -- for the 2 chars that vanish on render.
+        local function strip_concealed(s)
+          s = s:gsub("%[([^%]]+)%]%([^%)]+%)", "%1") -- [text](url) -> text
+          s = s:gsub("%*%*([^*]+)%*%*", "%1")        -- **bold**
+          s = s:gsub("__([^_]+)__", "%1")            -- __bold__
+          s = s:gsub("~~([^~]+)~~", "%1")            -- ~~strike~~
+          s = s:gsub("`([^`]+)`", "%1")              -- `code`
+          s = s:gsub("%*([^*]+)%*", "%1")            -- *italic*
+          s = s:gsub("_([^_]+)_", "%1")              -- _italic_
+          return s
+        end
+
         -- Display width of a string (multibyte-aware) — this is what makes a
         -- cell line up on screen. vim-table-mode's :TableModeRealign pads by
         -- byte length and is unreliable on long/unicode cells: it fails to
@@ -134,7 +154,7 @@ return {
         -- NOTE: use nvim_strwidth, not strdisplaywidth() — the latter returns
         -- inconsistent values for long unicode strings in nvim 0.11.x (e.g. a
         -- 346-cell measures 359), which breaks uniform padding.
-        local function cellwidth(s) return vim.api.nvim_strwidth(s) end
+        local function cellwidth(s) return vim.api.nvim_strwidth(strip_concealed(s)) end
 
         -- Split a table row into trimmed cell contents, dropping the outer
         -- pipes. Handles rows with or without a leading/trailing pipe and
@@ -160,8 +180,12 @@ return {
           -- that would exceed the window the widest columns word-wrap into the
           -- column instead (Notion/org-mode style). A wrapped entry spans
           -- several physical rows with empty key cells on the continuation
-          -- lines. Realign rejoins those continuation rows before re-wrapping,
-          -- so formatting is idempotent across saves.
+          -- lines. render-markdown's pipe_table renderer (see
+          -- render_markdown.lua) draws box-drawing borders over this fine, as
+          -- long as column width accounts for concealed markup (see
+          -- cellwidth()/strip_concealed() above) so its overlay and our raw
+          -- text agree on width. Realign rejoins continuation rows before
+          -- re-wrapping, so formatting is idempotent across saves.
           local WRAP_WIDTH = vim.g.table_realign_width
           if not WRAP_WIDTH then
             -- default: the window's actual text area. getwininfo().textoff is
@@ -234,9 +258,27 @@ return {
           -- wrap (prose) and share the width left over. A table that already
           -- fits the window wraps nothing. wrap[ci] is a boolean; colw[ci] is
           -- the column's render width either way.
+          -- Concealed markup (backticks, **bold**, etc.) adds raw characters
+          -- that vanish on render but still count toward the buffer's actual
+          -- physical line length — Neovim's line-wrap operates on that raw
+          -- length, not the rendered one. Budget for the worst-case row's
+          -- concealed overhead so a table with e.g. backtick-wrapped cells
+          -- doesn't overflow the window by those invisible chars and get its
+          -- trailing pipe raggedly soft-wrapped onto its own line.
+          local function raw_extra(s) return vim.api.nvim_strwidth(s) - cellwidth(s) end
+          local function row_overhead(cells)
+            local sum = 0
+            for _, c in ipairs(cells) do sum = sum + raw_extra(c) end
+            return sum
+          end
+          local max_overhead = row_overhead(header)
+          for _, row in ipairs(logical) do
+            max_overhead = math.max(max_overhead, row_overhead(row.cells))
+          end
+
           local MIN_WRAP = 20
           local GRACE = vim.g.table_realign_grace or 0
-          local overhead = 3 * ncols + 1  -- pipes + one space of padding per cell side
+          local overhead = 3 * ncols + 1 + max_overhead  -- pipes/padding + worst-case concealed-markup slack
           local avail = WRAP_WIDTH - overhead
           local order = {}
           for ci = 1, ncols do order[ci] = ci end
@@ -539,6 +581,18 @@ return {
           desc = "Realign markdown tables before save",
           callback = realign_all_tables,
         })
+
+        -- Also realign once on open, so a table typed/pasted elsewhere (e.g. by
+        -- an LLM, or before this plugin existed) renders correctly immediately
+        -- instead of looking broken until the first <Leader>tr or save. This is
+        -- purely cosmetic materialization of already-saved content, so clear
+        -- 'modified' after — it must not force a save prompt on a file the user
+        -- never actually touched.
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(0) then return end
+          realign_all_tables()
+          vim.bo[0].modified = false
+        end)
       end,
     })
   end,
