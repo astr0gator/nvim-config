@@ -25,6 +25,45 @@ _G.markdown_foldexpr = function()
   return "="
 end
 
+-- <CR> in markdown: continue a checkbox/list, toggle a fold under the cursor,
+-- or move down a line. Extracted to a named _G function (mirroring
+-- _G.markdown_foldexpr above) so the behaviour is unit-tested in
+-- tests/markdown_fold_mappings.lua. List items win over folding because a `##`
+-- heading makes every line beneath it foldable — checking foldlevel first would
+-- make Enter fold (not continue the list) for a list item under a heading.
+_G.markdown_enter = function()
+  local line = vim.api.nvim_get_current_line()
+  -- Checkbox lines match the bullet pattern too, but must continue as `- [ ]`
+  -- (not a plain `- `), so handle them before the bullet branch.
+  if _G.markdown_is_checkbox and _G.markdown_is_checkbox(line) then
+    _G.markdown_continue_checkbox()
+    return
+  end
+  if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
+    vim.api.nvim_feedkeys(
+      vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
+    return
+  end
+  if vim.fn.foldlevel(".") > 0 then
+    vim.cmd("normal! za")
+    return
+  end
+  -- Down one line to the first non-blank (the <CR> motion), run synchronously
+  -- so it is deterministic to test (feedkeys would only queue it async).
+  vim.cmd("normal! " .. vim.api.nvim_replace_termcodes("<CR>", true, false, true))
+end
+
+-- <C-CR> in markdown: if any fold is closed, open all (zR); otherwise close
+-- all (zM). Returns the keys to run (used as an expr mapping).
+_G.markdown_toggle_all_folds = function()
+  for i = 1, vim.fn.line("$") do
+    if vim.fn.foldclosed(i) ~= -1 then
+      return "zR"
+    end
+  end
+  return "zM"
+end
+
 autocmd("FileType", {
   pattern = "markdown",
   desc = "Configure markdown: visual wrapping, heading-based folding, fold keymaps",
@@ -62,42 +101,19 @@ autocmd("FileType", {
 
     local bopts = { buffer = true, noremap = true, silent = true }
 
-    -- Enter: on a list item, append a new bullet/number below and enter insert
-    -- mode (bullets.vim continuation); otherwise toggle a fold under the
-    -- cursor, or fall back to moving down a line.
-    vim.keymap.set("n", "<CR>", function()
-      -- List items win over folding: a `##` heading makes every line beneath
-      -- it foldable, so checking foldlevel first would make Enter fold (not
-      -- continue the list) for any list item living under a heading. Check
-      -- for a list item first; only fold on non-list foldable lines (headings).
-      local line = vim.api.nvim_get_current_line()
-      -- Checkbox lines match the bullet pattern too, but must continue as `- [ ]`
-      -- (not a plain `- `), so handle them before the bullet branch.
-      if _G.markdown_is_checkbox and _G.markdown_is_checkbox(line) then
-        _G.markdown_continue_checkbox()
-        return
-      end
-      if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
-        vim.api.nvim_feedkeys(
-          vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
-        return
-      end
-      if vim.fn.foldlevel(".") > 0 then
-        vim.cmd("normal! za")
-        return
-      end
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
-    end, vim.tbl_extend("force", bopts, { desc = "List — add item / toggle fold / line down" }))
+    -- <CR>/<C-CR> delegate to the tested _G helpers defined above.
+    vim.keymap.set("n", "<CR>", _G.markdown_enter,
+      vim.tbl_extend("force", bopts, { desc = "List — add item / toggle fold / line down" }))
 
     -- Ctrl+Enter: toggle all folds in buffer
-    vim.keymap.set("n", "<C-CR>", function()
-      for i = 1, vim.fn.line("$") do
-        if vim.fn.foldclosed(i) ~= -1 then
-          return "zR"
-        end
-      end
-      return "zM"
-    end, vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle all in buffer" }))
+    vim.keymap.set("n", "<C-CR>", _G.markdown_toggle_all_folds,
+      vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle all in buffer" }))
+
+    -- gO: fuzzy, j/k-navigable table-of-contents (telescope). Overrides the
+    -- built-in gO (vim.lsp.buf.document_symbol), which is flat + fuzzy-less and
+    -- usually empty for markdown. See config/markdown_toc.lua.
+    vim.keymap.set("n", "gO", function() require("config.markdown_toc").pick() end,
+      vim.tbl_extend("force", bopts, { desc = "TOC (markdown)" }))
   end,
 })
 

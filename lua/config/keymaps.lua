@@ -60,6 +60,11 @@ map("n", "<leader>q", "<Esc>:wq<CR>",        { desc = "Save and quit" })
 map("n", "<leader>Q", "<Esc>:q!<CR>",        { desc = "Quit without saving" })
 map("n", "<leader>x", close_current_buffer,  { desc = "Close buffer" })
 
+-- TOC — fuzzy table of contents (telescope). Mirrors gO (which is markdown-only,
+-- buffer-local). Works on any buffer with #-style headings; "No headings found"
+-- otherwise. See lua/config/markdown_toc.lua.
+map("n", "<leader>c", function() require("config.markdown_toc").pick() end, { desc = "TOC (table of contents)" })
+
 -- ── Shift Passthrough ──────────────────────────────────────────────────────────
 
 map({ "n", "i", "v" }, "<S-Space>", "<Space>", {})
@@ -187,10 +192,18 @@ map("n", "<leader>a", "ggVG", { desc = "Select all" })
 
 -- "around all" text object: `aa` selects the entire buffer. Defined once in
 -- operator-pending + visual mode, so it composes with every operator — no dialect:
---   yaa (yank) · daa (delete) · caa (change) · >aa (indent) · =aa (format) · vaa (select)
+--   yaa (yank) · daa (delete→VOID) · caa (change→VOID) · >aa (indent) · =aa (format) · vaa (select)
+-- NOTE: `d`/`c` are remapped to the void register ("_d/_c) below, so daa/caa discard
+-- text instead of cutting. For a real CUT of the whole buffer, use <leader>X (below).
 -- `aa` adds no timeout over built-in `a`-objects: `a` is already ambiguous (aw/ap/as…).
 map("o", "aa", "<Cmd>normal! ggVG<CR>", { silent = true, desc = "Object — entire buffer (around all)" })
 map("x", "aa", "<Cmd>normal! ggVG<CR>", { silent = true, desc = "Object — entire buffer (around all)" })
+
+-- Cut the entire buffer into the unnamed register ". Not `daa` — the normal-mode `d`
+-- is void-bound ("_d), so `daa` deletes to /dev/null. `:%delete` is an Ex command: it
+-- ignores the operator remap and cuts linewise to register ", matching `yaa`.
+-- (Swap to `:%delete +` to cut to the system clipboard instead.)
+map("n", "<leader>X", "<Cmd>%delete<CR>", { desc = "Cut — entire buffer to register" })
 
 -- ── Clipboard ─────────────────────────────────────────────────────────────────
 
@@ -368,7 +381,9 @@ map("n", "<leader>ow", function()
 end, { desc = "Toggle wrap" })
 map("n", "<leader>oa", function() require("config.automation.autosave").toggle() end, { desc = "Autosave toggle" })
 
--- ── Swap ──────────────────────────────────────────────────────────────────────
+-- ── Manipulate — swap ─────────────────────────────────────────────────────────
+-- Swap lives under <leader>m (manipulate), alongside multi-cursor <leader>ma.
+-- The first-level <leader>s slot is freed by this move.
 
-map("n", "<leader>ss", function() require("config.swap").swap() end,   { desc = "Swap — grab/swap value" })
-map("n", "<leader>sc", function() require("config.swap").cancel() end, { desc = "Swap — cancel" })
+map("n", "<leader>ms", function() require("config.swap").swap() end,   { desc = "Swap — grab/swap value" })
+map("n", "<leader>mc", function() require("config.swap").cancel() end, { desc = "Swap — cancel" })

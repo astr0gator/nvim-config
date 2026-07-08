@@ -1,6 +1,9 @@
 -- Configure which-key hints and the global key hint entrypoint.
--- No icons (text-only by request). Menu ordered via per-entry `order` so the
--- frequent actions fill the first column(s) and the basics/groups come after.
+--
+-- Ordering: `order` on each entry controls menu position. NOTE — `order` is a
+-- real which-key SORTER, but it is NOT a registered spec field, so `order=` is
+-- silently dropped unless we register it (see `config` below). Without that,
+-- the menu falls back to group → alphabetical, ignoring every `order`.
 return {
   "folke/which-key.nvim",
   event = "VeryLazy",
@@ -13,29 +16,41 @@ return {
     },
     icons = { mappings = false, separator = " → ", group = "" },
     spec = {
-      -- ── Discovery (order 1–9): things you want hints for ──
-      { "<leader>f",  desc = "Find files",       order = 1 },
-      { "<leader>/",  desc = "Grep",             order = 2 },
-      { "<leader>b",  desc = "Buffers",          order = 3 },
-      { "<leader>x",  desc = "Close buffer",     order = 4 },
-      { "<leader>d",  desc = "File tree",        order = 5 },
-      { "<leader>e",  group = "edit / md format", order = 6 },
-      { "<leader>t",  group = "table",           order = 7 },
-      { "<leader>;",  desc = "Command mode",     order = 8 },
-      { "<leader>a",  desc = "Select all",       order = 9 },
-      -- memorized file ops — parked at the very end (order 90+); you know these
-      { "<leader>w",  desc = "Save",             order = 90 },
-      { "<leader>q",  desc = "Save and quit",    order = 91 },
-      { "<leader>Q",  desc = "Quit (no save)",   order = 92 },
-      { "<leader>Z",  desc = "Save — all buffers", order = 93 },
+      -- ── Featured four (front, in this order) ──
+      { "<leader>c", desc = "TOC",             order = 1 },
+      { "<leader>t", group = "table",          order = 2 },
+      { "<leader>e", group = "edit",           order = 3 },
+      { "<leader>m", group = "manipulate",     order = 4 },
 
-      -- ── edit / md format (normal + visual) ──
+      -- ── Discovery / navigation ──
+      { "<leader>f",  desc = "Find files",       order = 5 },
+      { "<leader>/",  desc = "Grep",             order = 6 },
+      { "<leader>d",  desc = "File tree",        order = 7 },
+      { "<leader>;",  desc = "Command mode",     order = 8 },
+      { "<leader>o",  group = "options",         order = 9 },
+      { "<leader>p",  group = "palette",         order = 10 },
+
+      -- ── File ops ──
+      { "<leader>w",  desc = "Save",             order = 11 },
+      { "<leader>q",  desc = "Save and quit",    order = 12 },
+      { "<leader>Q",  desc = "Quit (no save)",   order = 13 },
+      { "<leader>Z",  desc = "Save — all buffers", order = 14 },
+
+      -- ── Buffers (together, near the end; x after b) ──
+      { "<leader>b",  desc = "Buffers",          order = 15 },
+      { "<leader>x",  desc = "Close buffer",     order = 16 },
+
+      -- ── Tail: select-all, then help last ──
+      { "<leader>a",  desc = "Select all",       order = 17 },
+      { "<leader>h",  group = "help",            order = 18 },
+
+      -- ── edit (normal + visual) ──
       { "<leader>eb", desc = "Bold **" },
       { "<leader>ei", desc = "Italic *" },
       { "<leader>eh", desc = "Highlight ==" },
       { "<leader>es", desc = "Strikethrough ~~" },
       { "<leader>ec", desc = "Inline code `" },
-      { "<leader>e",  group = "edit / md format", mode = "v" },
+      { "<leader>e",  group = "edit", mode = "v" },
       { "<leader>eb", mode = "v", desc = "Bold **" },
       { "<leader>ei", mode = "v", desc = "Italic *" },
       { "<leader>eh", mode = "v", desc = "Highlight ==" },
@@ -62,20 +77,12 @@ return {
       { "<leader>t>",  desc = "Move col right" },
       { "<leader>t<",  desc = "Move col left" },
 
-      -- ── Basics / config groups (order 20+) ──
-      { "<leader>h",  group = "help",   order = 20 },
-      { "<leader>c",  group = "code",   order = 21 },
-      { "<leader>o",  group = "options", order = 22 },
-      { "<leader>p",  group = "palette", order = 23 },
-      { "<leader>s",  group = "swap",   order = 24 },
-      { "<leader>m",  group = "multi-cursor", order = 25 },
+      -- ── manipulate (multi-cursor + swap) ──
+      { "<leader>ma", desc = "Select all matches" },
+      { "<leader>ms", desc = "Swap — grab/swap value" },
+      { "<leader>mc", desc = "Swap — cancel" },
 
-      { "<leader>hh", desc = "Help pages" },
-      { "<leader>hk", desc = "Keymaps" },
-      { "<leader>h?", desc = "Key hints" },
-
-      { "<leader>ca", desc = "Code action (LSP)" },
-
+      -- ── options ──
       { "<leader>of", desc = "Theme — Flexoki" },
       { "<leader>ot", desc = "Theme — Tokyonight" },
       { "<leader>om", desc = "Theme — Miasma" },
@@ -84,12 +91,12 @@ return {
       { "<leader>ow", desc = "Toggle wrap" },
       { "<leader>oa", desc = "Autosave toggle" },
 
+      -- ── palette ──
       { "<leader>pp", desc = "Command palette" },
 
-      { "<leader>ss", desc = "Swap — grab/swap value" },
-      { "<leader>sc", desc = "Swap — cancel" },
-
-      { "<leader>ma", desc = "Select all matches" },
+      { "<leader>hh", desc = "Help pages" },
+      { "<leader>hk", desc = "Keymaps" },
+      { "<leader>h?", desc = "Key hints" },
 
       -- ── Non-leader: Scroll ──
       { "<C-j>", desc = "Scroll — half page down" },
@@ -117,6 +124,8 @@ return {
       { "gd",    desc = "Go to definition" },
       { "gD",    desc = "Go to declaration" },
       { "gr",    desc = "Show references" },
+      { "gO",    desc = "TOC (markdown)" },
+      { "gK",    desc = "Code action (LSP)" },
       { "K",     desc = "Hover docs" },
 
       -- ── Non-leader: Fold ──
@@ -147,4 +156,26 @@ return {
       { "U",     desc = "Redo" },
     },
   },
+  config = function(_, opts)
+    -- Register `order` as a spec field so per-entry `order=` propagates
+    -- spec → mapping → node → item (the `order` sorter already reads item.order;
+    -- without this, `order=` is silently dropped and the menu stays alpha).
+    require("which-key.mappings").fields.order = {}
+
+    require("which-key").setup(opts)
+
+    -- Neutral, uniform text: keys + descriptions + groups all use the float's
+    -- normal color (WhichKeyNormal → NormalFloat, so bg matches — no patches).
+    -- which-key sets its defaults with default = true, so this override wins.
+    local function neutral_text()
+      for _, hl in ipairs({ "WhichKey", "WhichKeyDesc", "WhichKeyGroup" }) do
+        vim.api.nvim_set_hl(0, hl, { link = "NormalFloat" })
+      end
+    end
+    neutral_text()
+    vim.api.nvim_create_autocmd("ColorScheme", {
+      desc = "which-key: neutral text color",
+      callback = vim.schedule_wrap(neutral_text),
+    })
+  end,
 }

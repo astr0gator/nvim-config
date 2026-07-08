@@ -17,7 +17,8 @@ return {
         map("n", "gr", vim.lsp.buf.references, vim.tbl_extend("force", opts, { desc = "Go to references" }))
         map("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", opts, { desc = "Hover docs" }))
         map("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "Rename symbol" }))
-        map("n", "<leader>ca", vim.lsp.buf.code_action, vim.tbl_extend("force", opts, { desc = "Code action" }))
+        -- Code action on gK (next to gd/gr/K); freed <leader>c for the TOC.
+        map("n", "gK", vim.lsp.buf.code_action, vim.tbl_extend("force", opts, { desc = "Code action" }))
       end,
     })
 
