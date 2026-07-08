@@ -7,3 +7,4 @@ require "config.lazy"
 require "config.keymaps"
 require "config.autocmds"
 require "config.tabline"
+require("config.markdown_inline_query").setup()
