@@ -157,10 +157,10 @@ return {
     -- column, so indentation only ever reflects real nesting (lists), never
     -- this artifact.
     heading = { sign = false, position = "inline" },
-    -- Tables: table_mode.lua owns realignment/wrapping (raw physical rows,
-    -- with cell width sized to RENDERED width so this box-drawing overlay and
-    -- table_mode's padding agree — see cellwidth()/strip_concealed() there).
-    pipe_table = { enabled = true },
+    -- Tables: rendering overlay disabled entirely (explicit request) — tables
+    -- display as raw pipe-delimited text. table_mode.lua still owns
+    -- realignment/wrapping independent of this.
+    pipe_table = { enabled = false },
     -- Bullets: fixed slate (not theme-derived, explicit request), lighter
     -- glyphs than the plugin default (●○◆◇ read as heavy) but not as tiny as
     -- a bare middle dot. Flush at the same column as heading icons (no extra

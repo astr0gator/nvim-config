@@ -30,15 +30,9 @@ assert_eq(spec.opts.anti_conceal.enabled, false,
 assert_eq(spec.opts.win_options.concealcursor.rendered, "n",
   "concealcursor rendered must be 'n' (cursor line stays rendered in normal mode)")
 
--- Pipe tables: render-markdown draws the box-drawing borders; table_mode.lua
--- owns realignment/wrapping and sizes columns using RENDERED (concealed)
--- width, with slack budgeted for markup that disappears on render (backticks,
--- **bold**, etc.) — see cellwidth()/strip_concealed() in table_mode.lua. That
--- keeps table_mode's physical wrapping and render-markdown's border overlay
--- in agreement even for wide, multi-column, wrapped tables (verified live).
--- An earlier "borders jump" finding here was a render-timing race (captured
--- mid-redraw right after the on-open auto-realign), not a real conflict.
-assert_eq(spec.opts.pipe_table.enabled, true,
-  "pipe tables should render with box-drawing borders; table_mode.lua keeps column math render-aware")
+-- Pipe tables: rendering overlay disabled entirely (explicit request) —
+-- tables display as raw pipe-delimited text. table_mode.lua still owns
+-- realignment/wrapping independent of this.
+assert_eq(spec.opts.pipe_table.enabled, false, "pipe table rendering must stay disabled")
 
 print("ok: render-markdown config invariants hold (render_modes={n,c,t}, anti_conceal off, markdown ft)")

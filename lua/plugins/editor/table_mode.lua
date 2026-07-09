@@ -45,29 +45,11 @@ return {
         -- ── Table: insert ──
         vim.keymap.set("n", "<Leader>tic", ":<C-U>call tablemode#spreadsheet#InsertColumn(1)<CR>", bm("Insert col after"))
         vim.keymap.set("n", "<Leader>tiC", ":<C-U>call tablemode#spreadsheet#InsertColumn(0)<CR>", bm("Insert col before"))
-        vim.keymap.set("n", "<Leader>tir", function()
-          local lnum = vim.fn.line(".")
-          local line = vim.fn.getline(lnum)
-          -- Clear cell contents, keep pipe structure
-          local empty = line:gsub("([^|]+)", function(cell)
-            return string.rep(" ", #cell)
-          end)
-          vim.fn.append(lnum, empty)
-          vim.fn.cursor(lnum + 1, 1)
-          safe_realign()
-          vim.fn.search("|\\s*\\zs\\S", "cW")
-        end, vim.tbl_extend("force", b, { desc = "Insert row below" }))
-        vim.keymap.set("n", "<Leader>tiR", function()
-          local lnum = vim.fn.line(".")
-          local line = vim.fn.getline(lnum)
-          local empty = line:gsub("([^|]+)", function(cell)
-            return string.rep(" ", #cell)
-          end)
-          vim.fn.append(lnum - 1, empty)
-          vim.fn.cursor(lnum, 1)
-          safe_realign()
-          vim.fn.search("|\\s*\\zs\\S", "cW")
-        end, vim.tbl_extend("force", b, { desc = "Insert row above" }))
+        -- <Leader>tir/<Leader>tiR (insert row below/above) are registered
+        -- further below, after safe_realign is defined — they call it, and a
+        -- `local function` can't be referenced before its declaration in the
+        -- same chunk (it resolves to a nonexistent global instead and
+        -- errors: "attempt to call global 'safe_realign' (a nil value)").
 
         -- ── Table: navigate ──
         vim.keymap.set("n", "<Leader>tn", ":<C-U>call tablemode#spreadsheet#MoveToFirstRow()<CR>", bm("First row"))
@@ -224,8 +206,14 @@ return {
                 end
               elseif #header == 0 and #logical == 0 then
                 header = cells
-              elseif cells[1] == "" and #logical > 0 then
-                -- continuation row: fold its cells into the previous logical row
+              elseif cells[1] == "" and #logical > 0
+                  and not vim.iter(cells):all(function(c) return c == "" end) then
+                -- continuation row (empty first cell, but at least one other
+                -- cell has content — the hard-wrap remainder of the row
+                -- above): fold into the previous logical row. A row that's
+                -- EMPTY IN EVERY cell (e.g. a freshly-appended blank row) is
+                -- a real new row, not a continuation — falls to the `else`
+                -- branch below instead of being silently discarded here.
                 local prev = logical[#logical]
                 for ci = 2, #cells do
                   local add = cells[ci] or ""
@@ -393,6 +381,30 @@ return {
           realign_block(top, bot)
         end
 
+        vim.keymap.set("n", "<Leader>tir", function()
+          local lnum = vim.fn.line(".")
+          local line = vim.fn.getline(lnum)
+          -- Clear cell contents, keep pipe structure
+          local empty = line:gsub("([^|]+)", function(cell)
+            return string.rep(" ", #cell)
+          end)
+          vim.fn.append(lnum, empty)
+          vim.fn.cursor(lnum + 1, 1)
+          safe_realign()
+          vim.fn.search("|\\s\\zs", "cW")
+        end, vim.tbl_extend("force", b, { desc = "Insert row below" }))
+        vim.keymap.set("n", "<Leader>tiR", function()
+          local lnum = vim.fn.line(".")
+          local line = vim.fn.getline(lnum)
+          local empty = line:gsub("([^|]+)", function(cell)
+            return string.rep(" ", #cell)
+          end)
+          vim.fn.append(lnum - 1, empty)
+          vim.fn.cursor(lnum, 1)
+          safe_realign()
+          vim.fn.search("|\\s\\zs", "cW")
+        end, vim.tbl_extend("force", b, { desc = "Insert row above" }))
+
         -- Realign every proper table in the buffer (for the save autocmd, so a
         -- multi-table file stays tidy without visiting each table). Processed
         -- bottom-up: realigning a block changes line counts, so blocks at
@@ -522,20 +534,77 @@ return {
           })
           safe_realign()
           vim.fn.cursor(lnum + 2, 1)
-          vim.fn.search("|\\s*\\zs\\S", "cW")
+          vim.fn.search("|\\s\\zs", "cW")
+        end
+
+        -- Blank out a row's cell contents while keeping its pipe structure —
+        -- same shape as the <Leader>tir/<Leader>tiR row-insert helpers above.
+        -- Parens force gsub's single return value: it also returns a match
+        -- count, which would otherwise leak into vim.fn.append below as a
+        -- spurious 3rd argument ("Too many arguments for function: append").
+        local function blank_row(line)
+          return (line:gsub("([^|]+)", function(cell) return string.rep(" ", #cell) end))
+        end
+
+        -- Cell-to-cell motion: delegate to vim-table-mode's OWN
+        -- tablemode#spreadsheet#cell#Motion — the engine behind its native
+        -- `[|`/`]|` keys (verified in its source: autoload/tablemode/
+        -- spreadsheet/cell.vim). It already lands at the start of a cell
+        -- (2 cols past the separator) whether the cell is empty or not, and
+        -- already wraps correctly across border/separator rows — no need to
+        -- hand-roll that with vim.fn.search patterns (which is what
+        -- previously landed on the CLOSING pipe of an empty cell instead of
+        -- its start).
+        local function move_cell(dir)
+          vim.fn["tablemode#spreadsheet#cell#Motion"](dir)
         end
 
         local function next_cell()
           if not in_existing_table() then return false end
           safe_realign()
-          vim.fn.search("|\\s*\\zs\\S", "W")
+          -- Is the cursor in the LAST cell of the table's LAST row? (At most
+          -- one more `|` — the row's own closing pipe — remains ahead.)
+          -- Vim-table-mode has no native "add row" at all (confirmed: no
+          -- such <Plug> mapping/function exists anywhere in its source), and
+          -- its own motion just wraps back to this row's first cell here —
+          -- so this boundary is handled explicitly, growing the table with
+          -- a blank row instead.
+          local line = vim.api.nvim_get_current_line()
+          local _, pipes_ahead = line:sub(vim.fn.col(".")):gsub("|", "")
+          local _, bot = block_around_cursor()
+          if vim.fn.line(".") == bot and pipes_ahead <= 1 then
+            vim.fn.append(bot, blank_row(line))
+            safe_realign()
+            vim.fn.cursor(bot + 1, 3) -- 2 past the leading pipe: start of cell 1
+            return true
+          end
+          move_cell("l")
           return true
         end
 
         local function prev_cell()
           if not in_existing_table() then return false end
           safe_realign()
-          vim.fn.search("\\S\\ze\\s*|", "bW")
+          move_cell("h")
+          return true
+        end
+
+        -- Exposed so autocmds.lua's normal-mode <CR> and bullets.lua's
+        -- insert-mode <CR> can check "are we in a table" FIRST, before their
+        -- own checkbox/bullet/fold fallbacks — same composition pattern as
+        -- _G.markdown_is_checkbox/_G.markdown_continue_checkbox already use.
+        -- Returns true if handled (cursor was on an existing table row).
+        _G.markdown_table_enter = function()
+          if not in_existing_table() then return false end
+          if vim.api.nvim_get_mode().mode == "i" then
+            vim.schedule(function()
+              vim.cmd("stopinsert")
+              next_cell()
+              vim.cmd("startinsert")
+            end)
+          else
+            next_cell()
+          end
           return true
         end
 

@@ -32,6 +32,12 @@ end
 -- heading makes every line beneath it foldable — checking foldlevel first would
 -- make Enter fold (not continue the list) for a list item under a heading.
 _G.markdown_enter = function()
+  -- Table cells win first (set by table_mode.lua): otherwise a table row
+  -- sitting under a heading falls into the foldlevel check below and <CR>
+  -- closes the enclosing fold instead of moving/growing a cell.
+  if _G.markdown_table_enter and _G.markdown_table_enter() then
+    return
+  end
   local line = vim.api.nvim_get_current_line()
   -- Checkbox lines match the bullet pattern too, but must continue as `- [ ]`
   -- (not a plain `- `), so handle them before the bullet branch.
