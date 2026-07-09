@@ -57,6 +57,38 @@ function M.collect_headings(buf)
   return out
 end
 
+-- The section owning `lnum`: the nearest ATX heading at or above it, plus
+-- the line range of everything under that heading (its content, INCLUDING
+-- any sub-headings and their own content — a section ends at the next
+-- heading of the SAME OR SHALLOWER level, or end of buffer). Backs the
+-- ih/ah "heading" text objects (autocmds.lua).
+-- Returns heading_lnum, content_start, content_end (1-based, all inclusive)
+-- or nil if `lnum` is before the first heading (no owning section).
+-- content_start > content_end means the heading has no content under it.
+function M.heading_range(buf, lnum)
+  buf = buf or 0
+  lnum = lnum or vim.api.nvim_win_get_cursor(0)[1]
+  local headings = M.collect_headings(buf)
+  local owner, owner_idx
+  for i, h in ipairs(headings) do
+    if h.lnum <= lnum then
+      owner, owner_idx = h, i
+    else
+      break
+    end
+  end
+  if not owner then return nil end
+
+  local content_end = vim.api.nvim_buf_line_count(buf)
+  for i = owner_idx + 1, #headings do
+    if headings[i].level <= owner.level then
+      content_end = headings[i].lnum - 1
+      break
+    end
+  end
+  return owner.lnum, owner.lnum + 1, content_end
+end
+
 -- Open a telescope modal of the buffer's headings.
 --   • entries shown indented by heading level; fuzzy match is against the title.
 --   • <CR> closes the picker, jumps the cursor to the heading, opens its fold

@@ -660,17 +660,52 @@ return {
           return true
         end
 
+        -- Next/prev list item (bullet or numbered), same idea as move_row but
+        -- for lists instead of table rows: only fires when the CURRENT line
+        -- is itself a list item, and only jumps if another list item exists
+        -- further in that direction — otherwise returns false so J/K fall
+        -- through to paragraph motion instead of stranding you at the last
+        -- bullet. Uses _G.markdown_is_list_item (autocmds.lua) so this can
+        -- never drift out of sync with <CR>'s own list-continuation check.
+        local function move_list_item(dir)
+          if not (_G.markdown_is_list_item and _G.markdown_is_list_item(vim.api.nvim_get_current_line())) then
+            return false
+          end
+          local last = vim.fn.line("$")
+          local target = vim.fn.line(".")
+          while true do
+            target = target + dir
+            if target < 1 or target > last then return false end
+            local line = vim.fn.getline(target)
+            if _G.markdown_is_list_item(line) then
+              local prefix = line:match("^%s*[%-%*%+]%s+") or line:match("^%s*%d+[%.%)]%s+")
+              vim.fn.cursor(target, (prefix and #prefix or 0) + 1)
+              vim.cmd("normal! zz")
+              return true
+            end
+          end
+        end
+
         -- J/K, not <Leader>-prefixed: this needs to be as fast as Tab, and
         -- plain J/K don't collide with flash.nvim's own keys (s/S/r/R/<c-s>
-        -- — see flash.lua). Outside a table they fall through to their
-        -- normal jobs (J joins lines, K shows hover docs) instead of being
-        -- silently swallowed.
+        -- — see flash.lua). Priority: table row, then list item, then a
+        -- sensible non-destructive fallback. J never falls through to
+        -- vim's default join-line — there's no reason to reach for a
+        -- destructive line-merge on the same key used for "next block" (dd
+        -- already deletes a line if that's what's wanted), so plain prose
+        -- falls through to paragraph motion instead. K still falls through
+        -- to hover docs outside a table/list — that's non-destructive and
+        -- genuinely useful, so it's kept.
         vim.keymap.set("n", "J", function()
-          if not move_row(1) then vim.cmd("normal! J") end
-        end, bm("Table: next row (same column) / join line"))
+          if move_row(1) then return end
+          if move_list_item(1) then return end
+          vim.cmd("normal! }")
+        end, bm("Table row / list item / next paragraph"))
         vim.keymap.set("n", "K", function()
-          if not move_row(-1) then vim.lsp.buf.hover() end
-        end, bm("Table: prev row (same column) / hover docs"))
+          if move_row(-1) then return end
+          if move_list_item(-1) then return end
+          vim.lsp.buf.hover()
+        end, bm("Table row / list item / hover docs"))
 
         -- Exposed so autocmds.lua's normal-mode <CR> and bullets.lua's
         -- insert-mode <CR> can check "are we in a table" FIRST, before their

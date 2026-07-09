@@ -25,6 +25,14 @@ _G.markdown_foldexpr = function()
   return "="
 end
 
+-- A bullet (-/*/+) or numbered (1./1)) list item line, with or without a
+-- leading checkbox. Exposed as a global so table_mode.lua's J/K row-vs-list
+-- navigation (below) uses the exact same rule as <CR>'s continue-list check,
+-- instead of a second regex that could drift out of sync with this one.
+_G.markdown_is_list_item = function(line)
+  return line:match("^%s*[%-%*%+]%s") ~= nil or line:match("^%s*%d+[%.%)]%s") ~= nil
+end
+
 -- <CR> in markdown: continue a checkbox/list, toggle a fold under the cursor,
 -- or move down a line. Extracted to a named _G function (mirroring
 -- _G.markdown_foldexpr above) so the behaviour is unit-tested in
@@ -45,7 +53,7 @@ _G.markdown_enter = function()
     _G.markdown_continue_checkbox()
     return
   end
-  if line:match("^%s*[%-%*%+]%s") or line:match("^%s*%d+[%.%)]%s") then
+  if _G.markdown_is_list_item(line) then
     vim.api.nvim_feedkeys(
       vim.api.nvim_replace_termcodes("<Plug>(bullets-newline)", true, true, true), "m", false)
     return
@@ -114,6 +122,33 @@ autocmd("FileType", {
     -- Ctrl+Enter: toggle all folds in buffer
     vim.keymap.set("n", "<C-CR>", _G.markdown_toggle_all_folds,
       vim.tbl_extend("force", bopts, { expr = true, desc = "Fold — toggle all in buffer" }))
+
+    -- ih/ah: "heading" text object — ih is everything under the heading at
+    -- or above the cursor (its content, including sub-headings), excluding
+    -- the heading line itself; ah also includes the heading line. A section
+    -- ends at the next heading of the same-or-shallower level, or EOF. Same
+    -- shape as keymaps.lua's "aa" (whole-buffer) object: an operator-pending
+    -- + visual mapping that leaves a linewise Visual selection for the
+    -- pending operator (d/c/y/...) to act on — d/c already land in the void
+    -- register globally, so dih/dah/cih/cah need no extra register handling.
+    local function select_heading(inner)
+      local lnum = vim.api.nvim_win_get_cursor(0)[1]
+      local h_lnum, c_start, c_end = require("config.markdown_toc").heading_range(0, lnum)
+      if not h_lnum then return end -- cursor is above any heading: nothing to select
+      local from = inner and c_start or h_lnum
+      local to = c_end
+      if from > to then
+        if inner then return end -- ih with no content under the heading: nothing to select
+        to = h_lnum -- ah with no content: just the heading line itself
+      end
+      vim.fn.cursor(from, 1)
+      vim.cmd("normal! V")
+      vim.fn.cursor(to, 1)
+    end
+    vim.keymap.set({ "o", "x" }, "ih", function() select_heading(true) end,
+      vim.tbl_extend("force", bopts, { desc = "Object — inner heading (content, no title)" }))
+    vim.keymap.set({ "o", "x" }, "ah", function() select_heading(false) end,
+      vim.tbl_extend("force", bopts, { desc = "Object — around heading (title + content)" }))
 
     -- gO: fuzzy, j/k-navigable table-of-contents (telescope). Overrides the
     -- built-in gO (vim.lsp.buf.document_symbol), which is flat + fuzzy-less and
