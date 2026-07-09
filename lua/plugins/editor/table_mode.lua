@@ -152,6 +152,21 @@ return {
           return cells
         end
 
+        -- A continuation row (the hard-wrap remainder of the logical row
+        -- above, produced by realign_block's own word-wrap): empty first
+        -- cell, but at least one OTHER cell has content. A row that's empty
+        -- in EVERY cell (e.g. a freshly-appended blank row) is a real row,
+        -- not a continuation. Single source of truth for both realign_block
+        -- (which folds continuation rows back into the row above) and
+        -- move_row (vertical cell navigation, below), which must skip them.
+        local function is_continuation_cells(cells)
+          if cells[1] ~= "" then return false end
+          for i = 2, #cells do
+            if cells[i] ~= "" then return true end
+          end
+          return false
+        end
+
         -- Realign the contiguous block of `|` rows around the cursor so every
         -- column is padded to its widest cell (by display width) and every row
         -- ends up identical width. Separator rows (`---`/`:--:`/`---:`) are
@@ -170,15 +185,16 @@ return {
           -- re-wrapping, so formatting is idempotent across saves.
           local WRAP_WIDTH = vim.g.table_realign_width
           if not WRAP_WIDTH then
-            -- default: the window's actual text area. getwininfo().textoff is
-            -- nvim's own count of the gutter (line numbers + sign column + fold
-            -- column), so this fits the table precisely inside what's visible —
-            -- no soft-wrapping the closing pipe past the edge. -1 leaves the
-            -- closing pipe one cell inside the window; cap so an ultra-wide
-            -- monitor doesn't make prose unreadably long.
+            -- default: the window's actual text area, uncapped — always use
+            -- the full window width, however wide the monitor. getwininfo().
+            -- textoff is nvim's own count of the gutter (line numbers + sign
+            -- column + fold column), so this fits the table precisely inside
+            -- what's visible — no soft-wrapping the closing pipe past the
+            -- edge. -1 leaves the closing pipe one cell inside the window.
+            -- (Set vim.g.table_realign_width to override with a fixed cap.)
             local wi = vim.fn.getwininfo(vim.fn.win_getid())[1]
             local textw = wi and (wi.width - wi.textoff) or vim.o.columns
-            WRAP_WIDTH = math.max(40, math.min(textw - 1, 160))
+            WRAP_WIDTH = math.max(40, textw - 1)
           end
 
           -- Parse the block into header / separator / data rows, and rejoin
@@ -206,14 +222,8 @@ return {
                 end
               elseif #header == 0 and #logical == 0 then
                 header = cells
-              elseif cells[1] == "" and #logical > 0
-                  and not vim.iter(cells):all(function(c) return c == "" end) then
-                -- continuation row (empty first cell, but at least one other
-                -- cell has content — the hard-wrap remainder of the row
-                -- above): fold into the previous logical row. A row that's
-                -- EMPTY IN EVERY cell (e.g. a freshly-appended blank row) is
-                -- a real new row, not a continuation — falls to the `else`
-                -- branch below instead of being silently discarded here.
+              elseif #logical > 0 and is_continuation_cells(cells) then
+                -- continuation row: fold into the previous logical row.
                 local prev = logical[#logical]
                 for ci = 2, #cells do
                   local add = cells[ci] or ""
@@ -588,6 +598,79 @@ return {
           move_cell("h")
           return true
         end
+
+        -- Vertical cell navigation (same column, next/prev LOGICAL row).
+        -- vim-table-mode's own up/down motion (`{|`/`}|`) just steps one
+        -- physical line — fine for it, since it has no concept of a row
+        -- spanning several physical lines. Ours does (wide columns
+        -- word-wrap into several buffer lines — see WRAP_WIDTH above), so a
+        -- plain 1-line step would land mid-wrap on a continuation line
+        -- instead of the next real row. This walks past continuation/
+        -- separator rows to the next genuine row, then lands in the same
+        -- column — the reason j/k alone are awkward once a cell wraps to
+        -- 5-6 lines.
+        local function column_index()
+          local before = vim.api.nvim_get_current_line():sub(1, vim.fn.col(".") - 1)
+          local _, n = before:gsub("|", "")
+          return n
+        end
+
+        local function is_separator_row(lnum)
+          local cells = parse_row(vim.fn.getline(lnum))
+          if #cells == 0 then return false end
+          for _, c in ipairs(cells) do
+            if not c:match("^[%-:%s]*$") then return false end
+          end
+          return true
+        end
+
+        local function goto_column(lnum, col_idx)
+          local line = vim.fn.getline(lnum)
+          local pipes_seen, target = 0, 1
+          for i = 1, #line do
+            if line:sub(i, i) == "|" then
+              pipes_seen = pipes_seen + 1
+              if pipes_seen == col_idx then target = i + 2; break end
+            end
+          end
+          vim.fn.cursor(lnum, target)
+        end
+
+        -- Returns true if handled (cursor was on an existing table row) —
+        -- even at the table's boundary (a genuine no-op there, same as
+        -- vim-table-mode's own boundary behavior). false means "not in a
+        -- table", so the J/K keymaps below fall through to plain
+        -- join-line / hover-docs instead of ever touching table rows.
+        local function move_row(dir)
+          if not in_existing_table() then return false end
+          safe_realign()
+          local col_idx = column_index()
+          local last = vim.fn.line("$")
+          local target = vim.fn.line(".")
+          while true do
+            target = target + dir
+            if target < 1 or target > last or vim.fn.getline(target):sub(1, 1) ~= "|" then
+              return true -- at the table's edge: no-op, don't fall through to J/K's normal behavior
+            end
+            local cells = parse_row(vim.fn.getline(target))
+            if not is_separator_row(target) and not is_continuation_cells(cells) then break end
+          end
+          goto_column(target, col_idx)
+          vim.cmd("normal! zz") -- keep the target row in view after jumping past wrapped lines
+          return true
+        end
+
+        -- J/K, not <Leader>-prefixed: this needs to be as fast as Tab, and
+        -- plain J/K don't collide with flash.nvim's own keys (s/S/r/R/<c-s>
+        -- — see flash.lua). Outside a table they fall through to their
+        -- normal jobs (J joins lines, K shows hover docs) instead of being
+        -- silently swallowed.
+        vim.keymap.set("n", "J", function()
+          if not move_row(1) then vim.cmd("normal! J") end
+        end, bm("Table: next row (same column) / join line"))
+        vim.keymap.set("n", "K", function()
+          if not move_row(-1) then vim.lsp.buf.hover() end
+        end, bm("Table: prev row (same column) / hover docs"))
 
         -- Exposed so autocmds.lua's normal-mode <CR> and bullets.lua's
         -- insert-mode <CR> can check "are we in a table" FIRST, before their
