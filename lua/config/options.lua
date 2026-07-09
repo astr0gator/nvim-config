@@ -7,6 +7,7 @@ opt.number = true
 opt.relativenumber = true
 opt.laststatus = 3
 opt.signcolumn = "yes"
+opt.statuscolumn = [[%s%=%#LineNr#%{v:relnum==0?v:lnum:v:relnum}   ]]
 opt.mouse = "a"
 opt.clipboard = "unnamedplus"
 opt.ignorecase = true

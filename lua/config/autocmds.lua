@@ -119,12 +119,13 @@ autocmd("FileType", {
 
 vim.opt.viewoptions = { "cursor", "curdir", "folds" }
 
--- Set cursor color after colorscheme changes
+-- Set cursor color and dim line numbers after colorscheme changes
 autocmd("ColorScheme", {
-  desc = "Apply custom cursor color",
+  desc = "Apply custom cursor color and dimmed line numbers",
   callback = function()
     local theme = require("config.theme")
     theme.set_cursor()
+    theme.set_line_numbers()
   end,
 })
 

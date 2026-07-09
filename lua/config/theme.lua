@@ -138,6 +138,11 @@ function M.set_cursor()
   vim.api.nvim_set_hl(0, "TermCursor", { bg = M.cursor_color })
 end
 
+function M.set_line_numbers()
+  vim.api.nvim_set_hl(0, "LineNr", { link = "Comment" })
+  vim.api.nvim_set_hl(0, "CursorLineNr", { link = "Comment" })
+end
+
 function M.register_commands()
   vim.api.nvim_create_user_command("ThemeFlexoki", function()
     M.use_flexoki()
