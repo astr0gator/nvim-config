@@ -714,13 +714,13 @@ return {
         -- J/K, not <Leader>-prefixed: this needs to be as fast as Tab, and
         -- plain J/K don't collide with flash.nvim's own keys (s/S/r/R/<c-s>
         -- — see flash.lua). Priority: table row, then list item, then a
-        -- sensible non-destructive fallback. J never falls through to
-        -- vim's default join-line — there's no reason to reach for a
-        -- destructive line-merge on the same key used for "next block" (dd
-        -- already deletes a line if that's what's wanted), so plain prose
-        -- falls through to paragraph motion instead. K still falls through
-        -- to hover docs outside a table/list — that's non-destructive and
-        -- genuinely useful, so it's kept.
+        -- sensible non-destructive fallback. Neither falls through to vim's
+        -- default join-line / hover-docs: join was clobbering table rows
+        -- and list items the user wanted to navigate (dd already covers
+        -- line deletion), and hover doesn't move the cursor at all, which
+        -- made K feel stuck instead of mirroring J's forward paragraph
+        -- motion. So both fall back to paragraph motion — } for J, { for K
+        -- — which glides smoothly between heading sections either direction.
         vim.keymap.set("n", "J", function()
           if move_row(1) then return end
           if move_list_item(1) then return end
@@ -729,8 +729,8 @@ return {
         vim.keymap.set("n", "K", function()
           if move_row(-1) then return end
           if move_list_item(-1) then return end
-          vim.lsp.buf.hover()
-        end, bm("Table row / list item / hover docs"))
+          vim.cmd("normal! {")
+        end, bm("Table row / list item / prev paragraph"))
 
         -- Exposed so autocmds.lua's normal-mode <CR> and bullets.lua's
         -- insert-mode <CR> can check "are we in a table" FIRST, before their
