@@ -200,8 +200,17 @@ return {
           -- Parse the block into header / separator / data rows, and rejoin
           -- hard-wrapped continuation rows (those whose first cell is empty)
           -- back into the logical row above, so re-wrapping starts clean.
-          local header, sep_cells, align = {}, {}, {}
+          -- header_row/last_row are tracked by reference (not just the header
+          -- array) so a continuation line can fold into the HEADER too, not
+          -- only into a previous data row: the header wraps across several
+          -- physical lines exactly like data rows (see emit_wrapped below),
+          -- and without this its 2nd+ physical line — first cell empty, same
+          -- shape as any other continuation row — would otherwise fail the
+          -- "#logical > 0" guard (no data rows exist yet) and get misfiled as
+          -- a brand-new data row on the very next realign.
+          local header_row, sep_cells, align = nil, {}, {}
           local logical = {}
+          local last_row = nil
           for i = top, bot do
             local line = vim.fn.getline(i)
             if line:match("^%s*$") then
@@ -220,22 +229,25 @@ return {
                   local l, r = c:sub(1, 1) == ":", c:sub(-1) == ":"
                   align[ci] = (l and r) and "c" or (r and "r") or "l"
                 end
-              elseif #header == 0 and #logical == 0 then
-                header = cells
-              elseif #logical > 0 and is_continuation_cells(cells) then
-                -- continuation row: fold into the previous logical row.
-                local prev = logical[#logical]
+              elseif not header_row and #logical == 0 then
+                header_row = { cells = cells }
+                last_row = header_row
+              elseif last_row and is_continuation_cells(cells) then
+                -- continuation row: fold into the previous header/data row.
                 for ci = 2, #cells do
                   local add = cells[ci] or ""
                   if add ~= "" then
-                    prev.cells[ci] = (prev.cells[ci] == "" and add or prev.cells[ci] .. " " .. add)
+                    last_row.cells[ci] = (last_row.cells[ci] == "" and add or last_row.cells[ci] .. " " .. add)
                   end
                 end
               else
-                logical[#logical + 1] = { cells = cells }
+                local row = { cells = cells }
+                logical[#logical + 1] = row
+                last_row = row
               end
             end
           end
+          local header = header_row and header_row.cells or {}
 
           local ncols = 0
           for _, row in ipairs(logical) do ncols = math.max(ncols, #row.cells) end
@@ -337,7 +349,32 @@ return {
             out[#out + 1] = "|" .. table.concat(parts, "|") .. "|"
           end
 
-          emit(header)
+          -- Wrap-then-emit a logical row: word-wraps any column marked
+          -- wrap[ci] to colw[ci], expanding it to as many physical lines as
+          -- its tallest cell needs (continuation lines get "" in the other
+          -- columns). Used for BOTH the header and data rows so the header
+          -- can never end up wider than the columns everything else is
+          -- padded to — previously the header bypassed this and was emitted
+          -- raw/unwrapped, so a long header cell in a wrapped column
+          -- overflowed past colw while data/separator rows stayed narrow,
+          -- breaking column alignment for the whole table.
+          local function emit_wrapped(cells)
+            local lines_per, height = {}, 1
+            for ci = 1, ncols do
+              local c = cells[ci] or ""
+              lines_per[ci] = wrap[ci] and wordwrap(c, colw[ci]) or { c }
+              if #lines_per[ci] > height then height = #lines_per[ci] end
+            end
+            for li = 1, height do
+              local out_cells = {}
+              for ci = 1, ncols do
+                out_cells[ci] = (li == 1) and (lines_per[ci][1] or "") or (lines_per[ci][li] or "")
+              end
+              emit(out_cells)
+            end
+          end
+
+          emit_wrapped(header)
           -- separator row (dashes sized to each column's width)
           do
             local parts = {}
@@ -353,19 +390,7 @@ return {
           end
           -- data rows — a wrapped logical row expands to several physical rows
           for _, row in ipairs(logical) do
-            local lines_per, height = {}, 1
-            for ci = 1, ncols do
-              local c = row.cells[ci] or ""
-              lines_per[ci] = wrap[ci] and wordwrap(c, colw[ci]) or { c }
-              if #lines_per[ci] > height then height = #lines_per[ci] end
-            end
-            for li = 1, height do
-              local cells = {}
-              for ci = 1, ncols do
-                cells[ci] = (li == 1) and (lines_per[ci][1] or "") or (lines_per[ci][li] or "")
-              end
-              emit(cells)
-            end
+            emit_wrapped(row.cells)
           end
           -- nvim_buf_set_lines (not setline): the row count changes when a
           -- prose column wraps, so the replaced range must be exact.
