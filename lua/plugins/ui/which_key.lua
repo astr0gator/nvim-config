@@ -33,7 +33,7 @@ return {
       -- ── File ops ──
       { "<leader>w",  desc = "Save",             order = 11 },
       { "<leader>q",  desc = "Save and quit",    order = 12 },
-      { "<leader>Q",  desc = "Quit (no save)",   order = 13 },
+      { "<leader>k",  desc = "Quit (no save)",   order = 13 },
       { "<leader>Z",  desc = "Save — all buffers", order = 14 },
 
       -- ── Buffers (together, near the end; x after b) ──

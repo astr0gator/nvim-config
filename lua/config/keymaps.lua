@@ -57,7 +57,11 @@ vim.api.nvim_create_user_command("Bclose", close_current_buffer, {
 map("n", "<leader>w", "<cmd>w<CR>",          { desc = "Save" })
 map("n", "<leader>Z", "<cmd>Z<CR>",          { desc = "Save — all buffers" })
 map("n", "<leader>q", "<Esc>:wq<CR>",        { desc = "Save and quit" })
-map("n", "<leader>Q", "<Esc>:q!<CR>",        { desc = "Quit without saving" })
+-- "kill": force-quit, no save. Was <leader>Q — shift on the second key made
+-- it the slowest binding in the file group; <leader>k needs no shift and
+-- was free (an old which_key.lua.bak had it for "Keymaps", long since moved
+-- to <leader>hk — not live).
+map("n", "<leader>k", "<Esc>:q!<CR>",        { desc = "Quit without saving (kill)" })
 map("n", "<leader>x", close_current_buffer,  { desc = "Close buffer" })
 
 -- TOC — fuzzy table of contents (telescope). Mirrors gO (which is markdown-only,
