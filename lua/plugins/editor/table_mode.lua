@@ -38,22 +38,30 @@ return {
         vim.keymap.set("n", "<Leader>ts", ":TableSort<CR>", bm("Sort column asc"))
         vim.keymap.set("n", "<Leader>tS", ":TableSort!<CR>", bm("Sort column desc"))
 
-        -- ── Table: delete ──
-        vim.keymap.set("n", "<Leader>tdd", ":<C-U>call tablemode#spreadsheet#DeleteRow()<CR>", bm("Delete row"))
-        vim.keymap.set("n", "<Leader>tdc", ":<C-U>call tablemode#spreadsheet#DeleteColumn()<CR>", bm("Delete column"))
-
-        -- ── Table: insert ──
-        vim.keymap.set("n", "<Leader>tic", ":<C-U>call tablemode#spreadsheet#InsertColumn(1)<CR>", bm("Insert col after"))
-        vim.keymap.set("n", "<Leader>tiC", ":<C-U>call tablemode#spreadsheet#InsertColumn(0)<CR>", bm("Insert col before"))
-        -- <Leader>tir/<Leader>tiR (insert row below/above) are registered
-        -- further below, after safe_realign is defined — they call it, and a
-        -- `local function` can't be referenced before its declaration in the
-        -- same chunk (it resolves to a nonexistent global instead and
-        -- errors: "attempt to call global 'safe_realign' (a nil value)").
-
-        -- ── Table: navigate ──
-        vim.keymap.set("n", "<Leader>tn", ":<C-U>call tablemode#spreadsheet#MoveToFirstRow()<CR>", bm("First row"))
-        vim.keymap.set("n", "<Leader>tN", ":<C-U>call tablemode#spreadsheet#MoveToLastRow()<CR>", bm("Last row"))
+        -- ── Table: delete/insert column, navigate rows ──
+        -- <Leader>tdd/tdc (delete row/col), tic/tiC (insert col after/before),
+        -- tn/tN (first/last row) are registered further below, after their
+        -- wrap-aware helpers are defined — a `local function` can't be
+        -- referenced before its declaration in the same chunk. They used to
+        -- delegate straight to vim-table-mode's tablemode#spreadsheet#*
+        -- functions, but that engine has no concept of our custom
+        -- word-wrapped continuation rows (a wide cell that word-wraps into
+        -- several physical lines — see WRAP_WIDTH in emit_block below): it
+        -- treats every physical line as an independent row. Confirmed by
+        -- direct testing (2026-07-10): DeleteRow on a wrapped row deleted
+        -- almost the entire table (blanked the header, wiped every data row
+        -- down to just header+separator) instead of removing one row, and
+        -- MoveToFirstRow/MoveToLastRow landed on a continuation line instead
+        -- of a genuine row. Same root cause as the Tab/Shift-Tab cell-motion
+        -- bug fixed the same day (see next_cell/prev_cell below) — that
+        -- engine is never actually initialized here (tablemode#Enable() is
+        -- deliberately never called; see the comment at the top of init()),
+        -- so nothing that delegates to it can be trusted on this buffer.
+        --
+        -- <Leader>t[/<Leader>t]/<Leader>te (cell start/end, echo pos) DO stay
+        -- delegated: they only move within the CURRENT physical line, so
+        -- they're not exposed to the wrapped-row blind spot above — verified
+        -- correct on a table with wrapped rows before leaving them as-is.
         vim.keymap.set("n", "<Leader>t[", ":<C-U>call tablemode#spreadsheet#MoveToStartOfCell()<CR>", bm("Cell start"))
         vim.keymap.set("n", "<Leader>t]", ":<C-U>call tablemode#spreadsheet#MoveToEndOfCell()<CR>", bm("Cell end"))
         vim.keymap.set("n", "<Leader>te", ":<C-U>call tablemode#spreadsheet#EchoCell()<CR>", bm("Echo cell pos"))
@@ -167,47 +175,24 @@ return {
           return false
         end
 
-        -- Realign the contiguous block of `|` rows around the cursor so every
-        -- column is padded to its widest cell (by display width) and every row
-        -- ends up identical width. Separator rows (`---`/`:--:`/`---:`) are
-        -- detected per column to preserve left/right/center alignment hints.
-        local function realign_block(top, bot)
-          -- Fit the table to WRAP_WIDTH (the window width): narrow columns pad
-          -- to their widest cell so the pipes line up (the normal look), and if
-          -- that would exceed the window the widest columns word-wrap into the
-          -- column instead (Notion/org-mode style). A wrapped entry spans
-          -- several physical rows with empty key cells on the continuation
-          -- lines. render-markdown's pipe_table renderer (see
-          -- render_markdown.lua) draws box-drawing borders over this fine, as
-          -- long as column width accounts for concealed markup (see
-          -- cellwidth()/strip_concealed() above) so its overlay and our raw
-          -- text agree on width. Realign rejoins continuation rows before
-          -- re-wrapping, so formatting is idempotent across saves.
-          local WRAP_WIDTH = vim.g.table_realign_width
-          if not WRAP_WIDTH then
-            -- default: the window's actual text area, uncapped — always use
-            -- the full window width, however wide the monitor. getwininfo().
-            -- textoff is nvim's own count of the gutter (line numbers + sign
-            -- column + fold column), so this fits the table precisely inside
-            -- what's visible — no soft-wrapping the closing pipe past the
-            -- edge. -1 leaves the closing pipe one cell inside the window.
-            -- (Set vim.g.table_realign_width to override with a fixed cap.)
-            local wi = vim.fn.getwininfo(vim.fn.win_getid())[1]
-            local textw = wi and (wi.width - wi.textoff) or vim.o.columns
-            WRAP_WIDTH = math.max(40, textw - 1)
-          end
-
-          -- Parse the block into header / separator / data rows, and rejoin
-          -- hard-wrapped continuation rows (those whose first cell is empty)
-          -- back into the logical row above, so re-wrapping starts clean.
-          -- header_row/last_row are tracked by reference (not just the header
-          -- array) so a continuation line can fold into the HEADER too, not
-          -- only into a previous data row: the header wraps across several
-          -- physical lines exactly like data rows (see emit_wrapped below),
-          -- and without this its 2nd+ physical line — first cell empty, same
-          -- shape as any other continuation row — would otherwise fail the
-          -- "#logical > 0" guard (no data rows exist yet) and get misfiled as
-          -- a brand-new data row on the very next realign.
+        -- Parse the block into header / separator / data rows, and rejoin
+        -- hard-wrapped continuation rows (those whose first cell is empty)
+        -- back into the logical row above. Returns a mutable structure
+        -- {header, sep_cells, align, logical, ncols} — realign_block just
+        -- feeds this straight to emit_block, while delete_column/
+        -- insert_column (below) edit the parsed cells/ncols in place first.
+        -- One parse+emit pipeline for every table-shape mutation, instead of
+        -- each operation re-deriving wrap/emit logic (and re-introducing the
+        -- header-wrap-desync class of bug fixed 2026-07-10).
+        -- header_row/last_row are tracked by reference (not just the header
+        -- array) so a continuation line can fold into the HEADER too, not
+        -- only into a previous data row: the header wraps across several
+        -- physical lines exactly like data rows (see emit_wrapped below),
+        -- and without this its 2nd+ physical line — first cell empty, same
+        -- shape as any other continuation row — would otherwise fail the
+        -- "#logical > 0" guard (no data rows exist yet) and get misfiled as
+        -- a brand-new data row on the very next realign.
+        local function parse_block(top, bot)
           local header_row, sep_cells, align = nil, {}, {}
           local logical = {}
           local last_row = nil
@@ -252,6 +237,44 @@ return {
           local ncols = 0
           for _, row in ipairs(logical) do ncols = math.max(ncols, #row.cells) end
           ncols = math.max(ncols, #header, #sep_cells)
+
+          return { header = header, sep_cells = sep_cells, align = align, logical = logical, ncols = ncols }
+        end
+
+        -- Compute column widths/wrapping for a parsed block (see parse_block
+        -- above) and return it as final buffer lines: header (wrapped as
+        -- needed), separator, then each data row (wrapped as needed). Split
+        -- out of realign_block so delete_column/insert_column can mutate the
+        -- parsed structure and re-emit through the exact same wrap logic
+        -- realign uses, rather than duplicating it.
+        local function emit_block(parsed)
+          local header, sep_cells, align, logical, ncols =
+            parsed.header, parsed.sep_cells, parsed.align, parsed.logical, parsed.ncols
+
+          -- Fit the table to WRAP_WIDTH (the window width): narrow columns pad
+          -- to their widest cell so the pipes line up (the normal look), and if
+          -- that would exceed the window the widest columns word-wrap into the
+          -- column instead (Notion/org-mode style). A wrapped entry spans
+          -- several physical rows with empty key cells on the continuation
+          -- lines. render-markdown's pipe_table renderer (see
+          -- render_markdown.lua) draws box-drawing borders over this fine, as
+          -- long as column width accounts for concealed markup (see
+          -- cellwidth()/strip_concealed() above) so its overlay and our raw
+          -- text agree on width. Realign rejoins continuation rows before
+          -- re-wrapping, so formatting is idempotent across saves.
+          local WRAP_WIDTH = vim.g.table_realign_width
+          if not WRAP_WIDTH then
+            -- default: the window's actual text area, uncapped — always use
+            -- the full window width, however wide the monitor. getwininfo().
+            -- textoff is nvim's own count of the gutter (line numbers + sign
+            -- column + fold column), so this fits the table precisely inside
+            -- what's visible — no soft-wrapping the closing pipe past the
+            -- edge. -1 leaves the closing pipe one cell inside the window.
+            -- (Set vim.g.table_realign_width to override with a fixed cap.)
+            local wi = vim.fn.getwininfo(vim.fn.win_getid())[1]
+            local textw = wi and (wi.width - wi.textoff) or vim.o.columns
+            WRAP_WIDTH = math.max(40, textw - 1)
+          end
 
           -- Widest cell per column across header + (rejoined) data rows.
           local maxw = {}
@@ -392,6 +415,16 @@ return {
           for _, row in ipairs(logical) do
             emit_wrapped(row.cells)
           end
+          return out
+        end
+
+        -- Realign the contiguous block of `|` rows from top..bot so every
+        -- column is padded to its widest cell (by display width) and every
+        -- row ends up identical width. Separator rows (`---`/`:--:`/`---:`)
+        -- are detected per column to preserve left/right/center alignment
+        -- hints (see parse_block/emit_block above for the actual logic).
+        local function realign_block(top, bot)
+          local out = emit_block(parse_block(top, bot))
           -- nvim_buf_set_lines (not setline): the row count changes when a
           -- prose column wraps, so the replaced range must be exact.
           vim.api.nvim_buf_set_lines(0, top - 1, bot, false, out)
@@ -581,59 +614,12 @@ return {
           return (line:gsub("([^|]+)", function(cell) return string.rep(" ", #cell) end))
         end
 
-        -- Cell-to-cell motion: delegate to vim-table-mode's OWN
-        -- tablemode#spreadsheet#cell#Motion — the engine behind its native
-        -- `[|`/`]|` keys (verified in its source: autoload/tablemode/
-        -- spreadsheet/cell.vim). It already lands at the start of a cell
-        -- (2 cols past the separator) whether the cell is empty or not, and
-        -- already wraps correctly across border/separator rows — no need to
-        -- hand-roll that with vim.fn.search patterns (which is what
-        -- previously landed on the CLOSING pipe of an empty cell instead of
-        -- its start).
-        local function move_cell(dir)
-          vim.fn["tablemode#spreadsheet#cell#Motion"](dir)
-        end
-
-        local function next_cell()
-          if not in_existing_table() then return false end
-          safe_realign()
-          -- Is the cursor in the LAST cell of the table's LAST row? (At most
-          -- one more `|` — the row's own closing pipe — remains ahead.)
-          -- Vim-table-mode has no native "add row" at all (confirmed: no
-          -- such <Plug> mapping/function exists anywhere in its source), and
-          -- its own motion just wraps back to this row's first cell here —
-          -- so this boundary is handled explicitly, growing the table with
-          -- a blank row instead.
-          local line = vim.api.nvim_get_current_line()
-          local _, pipes_ahead = line:sub(vim.fn.col(".")):gsub("|", "")
-          local _, bot = block_around_cursor()
-          if vim.fn.line(".") == bot and pipes_ahead <= 1 then
-            vim.fn.append(bot, blank_row(line))
-            safe_realign()
-            vim.fn.cursor(bot + 1, 3) -- 2 past the leading pipe: start of cell 1
-            return true
-          end
-          move_cell("l")
-          return true
-        end
-
-        local function prev_cell()
-          if not in_existing_table() then return false end
-          safe_realign()
-          move_cell("h")
-          return true
-        end
-
-        -- Vertical cell navigation (same column, next/prev LOGICAL row).
-        -- vim-table-mode's own up/down motion (`{|`/`}|`) just steps one
-        -- physical line — fine for it, since it has no concept of a row
-        -- spanning several physical lines. Ours does (wide columns
-        -- word-wrap into several buffer lines — see WRAP_WIDTH above), so a
-        -- plain 1-line step would land mid-wrap on a continuation line
-        -- instead of the next real row. This walks past continuation/
-        -- separator rows to the next genuine row, then lands in the same
-        -- column — the reason j/k alone are awkward once a cell wraps to
-        -- 5-6 lines.
+        -- Column/row primitives shared by horizontal (next_cell/prev_cell)
+        -- and vertical (move_row) navigation. column_index counts the pipes
+        -- strictly before the cursor, which is exactly the 1-based cell
+        -- number (1 pipe before cursor ⇒ in cell 1, 2 pipes ⇒ cell 2, ...);
+        -- goto_column is its inverse, landing 2 cols past the col_idx'th
+        -- pipe (the space-padded start of that cell).
         local function column_index()
           local before = vim.api.nvim_get_current_line():sub(1, vim.fn.col(".") - 1)
           local _, n = before:gsub("|", "")
@@ -659,6 +645,207 @@ return {
             end
           end
           vim.fn.cursor(lnum, target)
+        end
+
+        -- Delete the LOGICAL row under the cursor — every physical line it
+        -- occupies, including wrapped continuation lines below it — not just
+        -- the one physical line. Hand-rolled: see the note above goto_column
+        -- (this file, "Cell-to-cell motion") for why vim-table-mode's own
+        -- DeleteRow can't be trusted here; confirmed directly that calling it
+        -- on a row with continuation lines deleted almost the ENTIRE table
+        -- (blanked the header, wiped every other row) instead of just that
+        -- row. No-op on the header/separator — deleting those isn't what
+        -- "delete row" should mean for a data table.
+        local function delete_row()
+          if not in_existing_table() then return end
+          safe_realign()
+          local top, bot = block_around_cursor()
+          local sep_lnum = nil
+          for i = top, bot do
+            if is_separator_row(i) then sep_lnum = i; break end
+          end
+          local lnum = vim.fn.line(".")
+          if not sep_lnum or lnum <= sep_lnum then return end
+          local rtop = lnum
+          while rtop > sep_lnum + 1 and is_continuation_cells(parse_row(vim.fn.getline(rtop))) do
+            rtop = rtop - 1
+          end
+          local rbot = rtop
+          while rbot < bot and is_continuation_cells(parse_row(vim.fn.getline(rbot + 1))) do
+            rbot = rbot + 1
+          end
+          vim.api.nvim_buf_set_lines(0, rtop - 1, rbot, false, {})
+          safe_realign()
+          vim.fn.cursor(math.min(rtop, vim.fn.line("$")), 1)
+        end
+
+        -- Remove/insert a column at the cursor's column index across the
+        -- WHOLE table (header, separator alignment, every data row) and
+        -- re-emit through parse_block/emit_block — the same pipeline realign
+        -- uses — rather than vim-table-mode's own DeleteColumn/InsertColumn,
+        -- which (like DeleteRow above) only understands one physical line
+        -- per row and would corrupt a table with wrapped cells. `mutate`
+        -- edits the parsed {header, sep_cells, align, logical, ncols} in
+        -- place; returns the block's top line on success, nil on a no-op, so
+        -- callers can reposition the cursor.
+        local function mutate_columns(mutate)
+          if not in_existing_table() then return nil end
+          safe_realign()
+          local top, bot = block_around_cursor()
+          local col_idx = column_index()
+          if col_idx < 1 then return nil end
+          local parsed = parse_block(top, bot)
+          if not mutate(parsed, col_idx) then return nil end
+          local out = emit_block(parsed)
+          vim.api.nvim_buf_set_lines(0, top - 1, bot, false, out)
+          return top
+        end
+
+        local function delete_column()
+          local top = mutate_columns(function(parsed, col_idx)
+            if parsed.ncols <= 1 or col_idx > parsed.ncols then return false end
+            table.remove(parsed.header, col_idx)
+            table.remove(parsed.sep_cells, col_idx)
+            table.remove(parsed.align, col_idx)
+            for _, row in ipairs(parsed.logical) do
+              table.remove(row.cells, col_idx)
+            end
+            parsed.ncols = parsed.ncols - 1
+            return true
+          end)
+          if top then goto_column(top, 1) end
+        end
+
+        -- after=true inserts to the RIGHT of the cursor's column, false to
+        -- the LEFT — matching vim-table-mode's own InsertColumn(1)/(0).
+        local function insert_column(after)
+          local top = mutate_columns(function(parsed, col_idx)
+            local pos = col_idx + (after and 1 or 0)
+            table.insert(parsed.header, pos, "")
+            table.insert(parsed.sep_cells, pos, "")
+            table.insert(parsed.align, pos, "l")
+            for _, row in ipairs(parsed.logical) do
+              table.insert(row.cells, pos, "")
+            end
+            parsed.ncols = parsed.ncols + 1
+            return true
+          end)
+          if top then goto_column(top, 1) end
+        end
+
+        -- Jump to the first/last genuine DATA row (skipping the header,
+        -- separator, and any wrapped continuation lines), landing in the
+        -- same column the cursor started in. Hand-rolled for the same
+        -- reason as delete_row/next_cell: vim-table-mode's own
+        -- MoveToFirstRow/MoveToLastRow land on a continuation line instead
+        -- of a real row once any cell has word-wrapped.
+        local function move_to_first_row()
+          if not in_existing_table() then return end
+          safe_realign()
+          local top, bot = block_around_cursor()
+          local col_idx = math.max(1, column_index())
+          local sep_lnum = nil
+          for i = top, bot do
+            if is_separator_row(i) then sep_lnum = i; break end
+          end
+          if not sep_lnum or sep_lnum + 1 > bot then return end
+          goto_column(sep_lnum + 1, col_idx)
+        end
+
+        local function move_to_last_row()
+          if not in_existing_table() then return end
+          safe_realign()
+          local top, bot = block_around_cursor()
+          local col_idx = math.max(1, column_index())
+          local target = bot
+          while target > top and is_continuation_cells(parse_row(vim.fn.getline(target))) do
+            target = target - 1
+          end
+          if is_separator_row(target) then return end
+          goto_column(target, col_idx)
+        end
+
+        vim.keymap.set("n", "<Leader>tdd", delete_row, bm("Delete row"))
+        vim.keymap.set("n", "<Leader>tdc", delete_column, bm("Delete column"))
+        vim.keymap.set("n", "<Leader>tic", function() insert_column(true) end, bm("Insert col after"))
+        vim.keymap.set("n", "<Leader>tiC", function() insert_column(false) end, bm("Insert col before"))
+        vim.keymap.set("n", "<Leader>tn", move_to_first_row, bm("First row"))
+        vim.keymap.set("n", "<Leader>tN", move_to_last_row, bm("Last row"))
+
+        -- Cell-to-cell motion: hand-rolled, NOT delegated to vim-table-mode's
+        -- own tablemode#spreadsheet#cell#Motion. That engine backs the
+        -- plugin's native `[|`/`]|` keys, but only works once a buffer has
+        -- gone through tablemode#Enable() to build its internal column
+        -- cache — and this config deliberately never calls Enable() (see the
+        -- comment in config() above: it maps `|` in insert mode and turns on
+        -- CursorHold auto-align, both of which corrupt non-table lines).
+        -- Confirmed by direct testing: calling that function on an
+        -- otherwise-untouched, already-aligned, non-wrapped table produces
+        -- non-monotonic jumps (col 10 → 2 → 33 → 23 instead of stepping
+        -- through columns in order) — it's not merely "doesn't know about
+        -- wrapped rows", it's uninitialized and unusable here regardless.
+        -- This mirrors move_row below: same column_index/goto_column
+        -- primitives, walking past separator/continuation rows to find the
+        -- next/prev genuine row when a move crosses a row boundary.
+        local function next_cell()
+          if not in_existing_table() then return false end
+          safe_realign()
+          local lnum = vim.fn.line(".")
+          local col_idx = column_index()
+          local ncols = #parse_row(vim.fn.getline(lnum))
+          local _, bot = block_around_cursor()
+          if col_idx < ncols then
+            goto_column(lnum, col_idx + 1)
+            return true
+          end
+          -- Last cell of this physical row. If it's also the table's last
+          -- row, grow the table with a blank row (vim-table-mode has no
+          -- native "add row" at all — confirmed, no such <Plug>/function
+          -- exists anywhere in its source).
+          if lnum == bot then
+            local line = vim.api.nvim_get_current_line()
+            vim.fn.append(bot, blank_row(line))
+            safe_realign()
+            vim.fn.cursor(bot + 1, 3) -- 2 past the leading pipe: start of cell 1
+            return true
+          end
+          -- Wrap to cell 1 of the next genuine row, skipping the separator
+          -- and any wrapped continuation lines of a multi-line cell.
+          local last = vim.fn.line("$")
+          local target = lnum
+          while true do
+            target = target + 1
+            if target > last or vim.fn.getline(target):sub(1, 1) ~= "|" then return true end
+            local cells = parse_row(vim.fn.getline(target))
+            if not is_separator_row(target) and not is_continuation_cells(cells) then break end
+          end
+          goto_column(target, 1)
+          return true
+        end
+
+        local function prev_cell()
+          if not in_existing_table() then return false end
+          safe_realign()
+          local lnum = vim.fn.line(".")
+          local col_idx = column_index()
+          if col_idx > 1 then
+            goto_column(lnum, col_idx - 1)
+            return true
+          end
+          -- First cell of this row: step to the LAST cell of the previous
+          -- genuine row, skipping separator/continuation lines. No-op at
+          -- the table's top-left, matching next_cell's own-boundary shape.
+          local top = block_around_cursor()
+          if lnum == top then return true end
+          local target = lnum
+          while true do
+            target = target - 1
+            if target < 1 or vim.fn.getline(target):sub(1, 1) ~= "|" then return true end
+            local cells = parse_row(vim.fn.getline(target))
+            if not is_separator_row(target) and not is_continuation_cells(cells) then break end
+          end
+          goto_column(target, #parse_row(vim.fn.getline(target)))
+          return true
         end
 
         -- Returns true if handled (cursor was on an existing table row) —
