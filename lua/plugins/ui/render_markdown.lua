@@ -158,7 +158,7 @@ return {
     -- this artifact.
     heading = { sign = false, position = "inline" },
     -- Tables: rendering overlay disabled entirely (explicit request) — tables
-    -- display as raw pipe-delimited text. table_mode.lua still owns
+    -- display as raw pipe-delimited text. markdown_table still owns
     -- realignment/wrapping independent of this.
     pipe_table = { enabled = false },
     -- Bullets: fixed slate (not theme-derived, explicit request), lighter

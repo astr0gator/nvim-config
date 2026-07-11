@@ -1,11 +1,12 @@
--- Test markdown table creation on <Tab>, incl. headers WITHOUT a leading pipe
--- (e.g. "score | name | ..."). Reproduces the user-facing flow end-to-end.
+-- Test markdown table editing end-to-end: creation on <Tab>, realign/wrap,
+-- cell motion, row/column CRUD, sort, cell start/end — all against
+-- config.markdown_table (the self-contained module; vim-table-mode is gone).
 
 vim.g.mapleader = " "
 
-local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/editor/table_mode.lua")
-spec.init()   -- sets vim.g.table_mode_* vars, disables plugin default mappings
-spec.config() -- registers the FileType markdown autocmd
+local cwd = vim.fn.getcwd()
+package.path = cwd .. "/lua/?.lua;" .. cwd .. "/lua/?/init.lua;" .. package.path
+require("config.markdown_table").setup() -- registers the FileType markdown autocmd
 
 -- Fire the autocmd so the buffer-local <Tab>/<S-Tab>/<leader>t* maps are set.
 vim.bo.filetype = "markdown"
@@ -232,7 +233,7 @@ assert_eq(cell_under_cursor()[10], "no founder-market",
 -- every other row) instead of just that one row, and MoveToFirstRow/
 -- MoveToLastRow landed on a continuation line instead of a genuine row.
 -- Same root cause as case 7's Tab bug — see the comment above delete_row
--- in table_mode.lua.
+-- in markdown_table.
 local function press(lhs)
   vim.fn.maparg(lhs, "n", false, true).callback()
 end
@@ -318,4 +319,137 @@ vim.api.nvim_win_set_cursor(0, { 8, 2 })
 press("<Leader>tn")
 assert_eq(cell_under_cursor()[1], "5", "case8: MoveToFirstRow lands on the real first row")
 
-print("ok: table creation tests passed (incl. no-leading-pipe header)")
+-- Case 9: <Leader>ts/tS — wrap-aware column sort. These used to be
+-- :TableSort/:TableSort!, delegated to vim-table-mode's spreadsheet engine —
+-- the same uninitialized, wrap-blind engine behind the case-7/8 regressions:
+-- it treats every physical line as an independent row, so sorting a table
+-- with wrapped cells scrambles continuation lines away from their logical
+-- rows. The hand-rolled sort operates on LOGICAL rows (continuation lines
+-- glued to their row), keyed on the cursor's column, numeric-aware.
+vim.g.table_realign_width = 60
+local function sort_fixture()
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "| score | name | closed reason |",
+    "| --- | --- | --- |",
+    "| 5 | dealcraft | no founder-market fit, too many weak rings in a chain |",
+    "| 10 | zeta | fine |",
+    "| 2 | make something agents want | ok |",
+  })
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  realign_table() -- wrap the long reason cell so the fixture has continuation rows
+end
+
+-- Read back the LOGICAL data rows: skip header/separator, fold continuation
+-- lines (empty first cell, some other cell non-empty) into the row above.
+local function logical_rows()
+  local rows, past_sep = {}, false
+  for _, line in ipairs(buf_lines()) do
+    if is_sep_row(line) then
+      past_sep = true
+    elseif past_sep then
+      local cs = cells_of(line)
+      local continuation = cs[1] == ""
+      if continuation then
+        local prev = rows[#rows]
+        for i, c in ipairs(cs) do
+          if c ~= "" then prev[i] = prev[i] == "" and c or (prev[i] .. " " .. c) end
+        end
+      else
+        rows[#rows + 1] = cs
+      end
+    end
+  end
+  return rows
+end
+
+-- Put the cursor inside the cell that contains `text` (any data row).
+local function cursor_into(text)
+  for i, line in ipairs(buf_lines()) do
+    local at = line:find(text, 1, true)
+    if at then
+      vim.api.nvim_win_set_cursor(0, { i, at - 1 })
+      return
+    end
+  end
+  error("cursor_into: '" .. text .. "' not found in buffer")
+end
+
+-- Numeric ascending on the score column: 2 < 5 < 10 (NOT lexicographic,
+-- where "10" < "2" < "5").
+sort_fixture()
+cursor_into("5")
+press("<Leader>ts")
+local sorted = logical_rows()
+assert_eq({ sorted[1][1], sorted[2][1], sorted[3][1] }, { "2", "5", "10" },
+  "case9: <Leader>ts sorts the score column numerically ascending")
+
+-- The wrapped row survives the sort intact: its continuation text is still
+-- attached to ITS row (dealcraft), not scrambled into a neighbor.
+for _, row in ipairs(sorted) do
+  if row[2] == "dealcraft" then
+    assert_eq(row[3], "no founder-market fit, too many weak rings in a chain",
+      "case9: wrapped cell text stays glued to its logical row through the sort")
+  end
+end
+
+-- Every physical row still equal width after sorting.
+local lines9 = buf_lines()
+for i, line in ipairs(lines9) do
+  assert_eq(#line, #lines9[1], "case9: row " .. i .. " still matches table width after sort")
+end
+
+-- Descending.
+cursor_into("5")
+press("<Leader>tS")
+sorted = logical_rows()
+assert_eq({ sorted[1][1], sorted[2][1], sorted[3][1] }, { "10", "5", "2" },
+  "case9: <Leader>tS sorts the score column numerically descending")
+
+-- String sort keyed on a DIFFERENT column (name): alphabetical, proving the
+-- sort keys off the cursor's column, not always column 1.
+sort_fixture()
+cursor_into("zeta")
+press("<Leader>ts")
+sorted = logical_rows()
+assert_eq({ sorted[1][2], sorted[2][2], sorted[3][2] },
+  { "dealcraft", "make something agents want", "zeta" },
+  "case9: <Leader>ts on the name column sorts alphabetically")
+vim.g.table_realign_width = nil
+
+-- Case 10: <Leader>t[ / <Leader>t] / <Leader>te — cell start/end/position.
+-- These were the LAST keymaps still delegated to vim-table-mode
+-- (tablemode#spreadsheet#MoveToStartOfCell/MoveToEndOfCell/EchoCell); now
+-- hand-rolled like everything else so the plugin can be dropped entirely.
+vim.g.table_realign_width = nil
+wrapped_table_fixture()
+vim.api.nvim_win_set_cursor(0, { 3, 0 })
+realign_table()
+
+-- From the middle of "dealcraft" (row 3, cell 2): t[ lands on its first
+-- char, t] on its last char.
+cursor_into("alcraft") -- middle of "dealcraft"
+press("<Leader>t[")
+local pos = vim.api.nvim_win_get_cursor(0)
+local line10 = buf_lines()[pos[1]]
+assert_eq(line10:sub(pos[2] + 1, pos[2] + 9), "dealcraft", "case10: <Leader>t[ lands on the cell's first char")
+press("<Leader>t]")
+pos = vim.api.nvim_win_get_cursor(0)
+assert_eq(line10:sub(pos[2] - 7, pos[2] + 1), "dealcraft", "case10: <Leader>t] lands on the cell's last char")
+
+-- <Leader>te reports the LOGICAL position: row 2 for the "make something"
+-- row (the wrapped dealcraft row above it spans 4 physical lines but is ONE
+-- logical row), column 2 for the name cell.
+vim.cmd("messages clear")
+cursor_into("make something")
+press("<Leader>te")
+local msgs = vim.api.nvim_exec2("messages", { output = true }).output
+assert_eq(msgs:find("(2, 2)", 1, true) ~= nil, true,
+  "case10: <Leader>te reports logical row 2, col 2 (got: " .. msgs .. ")")
+
+-- Case 11: the formula keymaps (<Leader>tf/tF) are GONE — they delegated to
+-- vim-table-mode's uninitialized spreadsheet engine and were dropped with
+-- the plugin rather than reimplemented.
+assert_eq(vim.fn.maparg("<Leader>tf", "n"), "", "case11: <Leader>tf (formulas) is unmapped")
+assert_eq(vim.fn.maparg("<Leader>tF", "n"), "", "case11: <Leader>tF (formulas) is unmapped")
+
+print("ok: table tests passed (create/realign/nav/CRUD/sort/cell-pos, no vim-table-mode)")

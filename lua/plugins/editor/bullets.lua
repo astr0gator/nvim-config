@@ -117,7 +117,7 @@ return {
       -- Enter (insert mode): continue a checkbox with a fresh `- [ ] ` below;
       -- otherwise defer to bullets.vim for plain bullets / numbered lists.
       vim.keymap.set("i", "<CR>", function()
-        -- Table cells win first (set by table_mode.lua): moves to the next
+        -- Table cells win first (set by markdown_table): moves to the next
         -- cell, or grows the table with a new row at the last cell.
         if _G.markdown_table_enter and _G.markdown_table_enter() then
           return

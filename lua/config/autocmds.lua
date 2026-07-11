@@ -26,7 +26,7 @@ _G.markdown_foldexpr = function()
 end
 
 -- A bullet (-/*/+) or numbered (1./1)) list item line, with or without a
--- leading checkbox. Exposed as a global so table_mode.lua's J/K row-vs-list
+-- leading checkbox. Exposed as a global so markdown_table's J/K row-vs-list
 -- navigation (below) uses the exact same rule as <CR>'s continue-list check,
 -- instead of a second regex that could drift out of sync with this one.
 _G.markdown_is_list_item = function(line)
@@ -40,7 +40,7 @@ end
 -- heading makes every line beneath it foldable — checking foldlevel first would
 -- make Enter fold (not continue the list) for a list item under a heading.
 _G.markdown_enter = function()
-  -- Table cells win first (set by table_mode.lua): otherwise a table row
+  -- Table cells win first (set by markdown_table): otherwise a table row
   -- sitting under a heading falls into the foldlevel check below and <CR>
   -- closes the enclosing fold instead of moving/growing a cell.
   if _G.markdown_table_enter and _G.markdown_table_enter() then

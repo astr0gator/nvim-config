@@ -45,30 +45,28 @@ local aku = vim.fn.maparg("<A-k>", "n", false, true)
 assert_eq(aku.noremap, 1, "<A-k> must be noremap")
 assert_eq(routes_to(aku, "<c-u>zz"), true, "<A-k> rhs = <C-u>zz (got " .. vim.inspect(aku.rhs) .. ")")
 
--- Regression guard: table_mode.lua binds buffer-local J/K (table row / list
--- item navigation) inside markdown buffers. It must NEVER touch j/k or
+-- Regression guard: config.markdown_table binds buffer-local J/K (table row /
+-- list item navigation) inside markdown buffers. It must NEVER touch j/k or
 -- <C-j>/<C-k> — those are a completely different key (lowercase vs
 -- Ctrl+lowercase; Vim doesn't conflate them), but this has broken before via
--- unrelated edits in the same file, so pin it explicitly: load table_mode.lua
+-- unrelated edits in the same file, so pin it explicitly: load the module
 -- on top of keymaps.lua, fire its FileType(markdown) setup, and re-check
 -- every assertion above still holds — plus that J/K are buffer-local ONLY
 -- (never leak globally into other buffers).
 vim.g.mapleader = " "
-local table_mode_spec = dofile(cwd .. "/lua/plugins/editor/table_mode.lua")
-table_mode_spec.init()
-table_mode_spec.config()
+require("config.markdown_table").setup()
 vim.bo.filetype = "markdown" -- fires the FileType autocmd, registers buffer-local J/K
 
-assert_eq(vim.fn.maparg("j", "n"), "", "j must stay unmapped even after table_mode.lua loads in markdown")
-assert_eq(vim.fn.maparg("k", "n"), "", "k must stay unmapped even after table_mode.lua loads in markdown")
+assert_eq(vim.fn.maparg("j", "n"), "", "j must stay unmapped even after markdown_table loads in markdown")
+assert_eq(vim.fn.maparg("k", "n"), "", "k must stay unmapped even after markdown_table loads in markdown")
 
 local cjd2 = vim.fn.maparg("<C-j>", "n", false, true)
-assert_eq(cjd2.noremap, 0, "<C-j> must still be remap=true after table_mode.lua loads")
-assert_eq(routes_to(cjd2, "<c-d>"), true, "<C-j> must still route via <C-d> after table_mode.lua loads")
+assert_eq(cjd2.noremap, 0, "<C-j> must still be remap=true after markdown_table loads")
+assert_eq(routes_to(cjd2, "<c-d>"), true, "<C-j> must still route via <C-d> after markdown_table loads")
 
 local cku2 = vim.fn.maparg("<C-k>", "n", false, true)
-assert_eq(cku2.noremap, 0, "<C-k> must still be remap=true after table_mode.lua loads")
-assert_eq(routes_to(cku2, "<c-u>"), true, "<C-k> must still route via <C-u> after table_mode.lua loads")
+assert_eq(cku2.noremap, 0, "<C-k> must still be remap=true after markdown_table loads")
+assert_eq(routes_to(cku2, "<c-u>"), true, "<C-k> must still route via <C-u> after markdown_table loads")
 
 -- J/K exist in THIS (markdown) buffer, buffer-local — not as a global map.
 -- maparg(name, mode) alone checks the CURRENT buffer's local maps first, so
@@ -86,4 +84,4 @@ assert_eq(vim.fn.maparg("J", "n"), "", "J must not leak into a non-markdown buff
 assert_eq(vim.fn.maparg("K", "n"), "", "K must not leak into a non-markdown buffer")
 
 print("ok: smooth-scroll keymap tests passed (j/k pristine, <C-j>/<C-k> neoscroll routing, " ..
-  "unaffected by table_mode.lua's buffer-local J/K)")
+  "unaffected by markdown_table's buffer-local J/K)")

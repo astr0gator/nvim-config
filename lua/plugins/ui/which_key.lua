@@ -59,8 +59,6 @@ return {
 
       -- ── table ──
       { "<leader>tr",  desc = "Realign" },
-      { "<leader>tf",  desc = "Add formula" },
-      { "<leader>tF",  desc = "Eval formulas" },
       { "<leader>ts",  desc = "Sort column asc" },
       { "<leader>tS",  desc = "Sort column desc" },
       { "<leader>tdd", desc = "Delete row" },

@@ -31,7 +31,7 @@ assert_eq(spec.opts.win_options.concealcursor.rendered, "n",
   "concealcursor rendered must be 'n' (cursor line stays rendered in normal mode)")
 
 -- Pipe tables: rendering overlay disabled entirely (explicit request) —
--- tables display as raw pipe-delimited text. table_mode.lua still owns
+-- tables display as raw pipe-delimited text. markdown_table still owns
 -- realignment/wrapping independent of this.
 assert_eq(spec.opts.pipe_table.enabled, false, "pipe table rendering must stay disabled")
 
